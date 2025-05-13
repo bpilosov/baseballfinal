@@ -70,7 +70,7 @@ def parallel_coords_data():
     
     # format data for d3 parallel coordinates
     result = []
-    for _, row in data_subset.head(100).iterrows():  # limit to 100 players for performance
+    for _, row in data_subset.iterrows():  # limit to 100 players for performance
         player_data = {
             'name': row['last_name, first_name'],
             'player_age': float(row['player_age']),

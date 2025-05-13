@@ -149,6 +149,61 @@ body {
 }
 
 /* d3 parallel coordinates specific styles */
+/* Add these styles to style.css */
+
+/* Styles for draggable parallel coordinates */
+.dimension {
+    cursor: grab;
+    transition: opacity 0.3s;
+}
+
+.dimension:hover .axis path {
+    stroke: #3498db;
+    stroke-width: 1.5px;
+}
+
+.dimension.active {
+    cursor: grabbing;
+}
+
+.dimension.active .axis path {
+    stroke: #e74c3c;
+    stroke-width: 2px;
+}
+
+.dimension.active text {
+    font-weight: bold;
+}
+
+/* Visual feedback for dragging */
+.drag-handle {
+    cursor: move;
+    fill: #777;
+    font-size: 12px;
+}
+
+.drag-handle:hover {
+    fill: #333;
+}
+
+/* Improve tooltip appearance */
+.d3-tooltip {
+    max-width: 200px;
+    background: rgba(45, 62, 80, 0.95);
+    color: #ecf0f1;
+    border: none;
+    border-radius: 5px;
+    padding: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.d3-tooltip strong {
+    color: #2ecc71;
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
 .dimension .axis text {
     font-size: 0.8em;
     fill: #444;
