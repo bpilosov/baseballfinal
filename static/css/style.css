@@ -148,6 +148,41 @@ body {
     z-index: 100; /* Ensure tooltip is above other elements */
 }
 
+/* d3 parallel coordinates specific styles */
+.dimension .axis text {
+    font-size: 0.8em;
+    fill: #444;
+    text-anchor: start;
+}
+
+.dimension .axis path,
+.dimension .axis line {
+    stroke: #999;
+    stroke-width: 1px;
+}
+
+.dimension .axis text.label {
+    font-weight: bold;
+}
+
+.foreground path {
+    transition: stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease;
+}
+
+.d3-tooltip {
+    position: absolute;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    pointer-events: none;
+    font-size: 12px;
+    line-height: 1.4;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    z-index: 1000;
+    color: #333;
+}
+
 /* Responsive adjustments */
 /* For smaller screens, scrolling might become necessary if content can't be shrunk further.
    The current media queries change to a single column layout.

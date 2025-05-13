@@ -41,6 +41,56 @@ def index():
 
 # --- API Endpoints for D3.js Charts ---
 
+@app.route('/api/parallel_coords_data')
+def parallel_coords_data():
+    """
+    provides data for the parallel coordinates plot with selected player metrics
+    """
+    df = get_stats_data()
+    
+    if df.empty:
+        return jsonify([])
+    
+    # select only the columns we need for parallel coordinates
+    cols = ['last_name, first_name', 'player_age', 'bb_percent', 'batting_avg', 
+            'slg_percent', 'on_base_percent', 'on_base_plus_slg', 'woba', 
+            'BATS', 'THROWS', 'height', 'weight']
+    
+    # handle missing data - drop rows with NaN in our columns of interest
+    data_subset = df[cols].dropna()
+    
+    # convert categorical variables to numeric for parallel coords
+    # create a mapping for BATS: L=0, R=1, B=2
+    bats_map = {'L': 0, 'R': 1, 'B': 2}
+    data_subset['bats_num'] = data_subset['BATS'].map(bats_map)
+    
+    # create mapping for THROWS: L=0, R=1
+    throws_map = {'L': 0, 'R': 1}
+    data_subset['throws_num'] = data_subset['THROWS'].map(throws_map)
+    
+    # format data for d3 parallel coordinates
+    result = []
+    for _, row in data_subset.head(100).iterrows():  # limit to 100 players for performance
+        player_data = {
+            'name': row['last_name, first_name'],
+            'player_age': float(row['player_age']),
+            'bb_percent': float(row['bb_percent']),
+            'batting_avg': float(row['batting_avg']),
+            'slg_percent': float(row['slg_percent']),
+            'on_base_percent': float(row['on_base_percent']),
+            'on_base_plus_slg': float(row['on_base_plus_slg']),
+            'woba': float(row['woba']),
+            'bats': row['BATS'],
+            'bats_num': float(row['bats_num']),
+            'throws': row['THROWS'],
+            'throws_num': float(row['throws_num']),
+            'height': float(row['height']),
+            'weight': float(row['weight'])
+        }
+        result.append(player_data)
+    
+    return jsonify(result)
+
 @app.route('/api/player_home_runs')
 def player_home_runs():
     """

@@ -282,6 +282,213 @@ document.addEventListener('DOMContentLoaded', function () {
         }).catch(error => console.error(`Error for pie chart (${apiUrl}):`, error));
     }
 
+function drawParallelCoordinates() {
+        const containerId = 'chart-parallel-coords';
+        const apiUrl = '/api/parallel_coords_data';
+
+        const chartContainer = d3.select(`#${containerId}`);
+        if (chartContainer.empty()) {
+            console.error(`chart container #${containerId} not found.`);
+            return;
+        }
+        
+        // remove any tooltips from previous render
+        d3.select("body").selectAll(".d3-tooltip").remove();
+        
+        chartContainer.selectAll("*").remove(); // clear previous chart
+
+        const { width, height, margin, containerWidth, containerHeight } = getChartDimensions(chartContainer);
+
+        if (width <= 0 || height <= 0) {
+            console.warn(`invalid dimensions for ${containerId}. width: ${width}, height: ${height}`);
+            chartContainer.html("<p style='text-align:center; padding-top:20px;'>chart area too small or data not loaded.</p>");
+            return;
+        }
+
+        const svg = chartContainer.append('svg')
+            .attr('width', containerWidth)
+            .attr('height', containerHeight)
+            .append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        d3.json(apiUrl).then(data => {
+            if (!data || data.length === 0) {
+                svg.append("text")
+                   .attr("x", width / 2)
+                   .attr("y", height / 2)
+                   .attr("text-anchor", "middle")
+                   .style("font-size", "14px")
+                   .text("no player data available.");
+                return;
+            }
+
+            // define the dimensions we'll use for the parallel coordinates
+            const dimensions = [
+                {name: "player_age", label: "Age", type: "number"},
+                {name: "bb_percent", label: "BB%", type: "number"},
+                {name: "batting_avg", label: "Batting Avg", type: "number"},
+                {name: "slg_percent", label: "SLG%", type: "number"},
+                {name: "on_base_percent", label: "OBP", type: "number"},
+                {name: "on_base_plus_slg", label: "OPS", type: "number"},
+                {name: "woba", label: "wOBA", type: "number"},
+                // {name: "bats_num", label: "Bats", type: "categorical", categories: {0: "L", 1: "R", 2: "B"}},
+                // {name: "throws_num", label: "Throws", type: "categorical", categories: {0: "L", 1: "R"}},
+                {name: "height", label: "Height (in)", type: "number"},
+                {name: "weight", label: "Weight (lb)", type: "number"}
+            ];
+
+            // create scale for each dimension
+            const y = {};
+            dimensions.forEach(dim => {
+                // use different domain calculation based on type
+                if (dim.type === "categorical") {
+                    y[dim.name] = d3.scalePoint()
+                        .domain(Object.keys(dim.categories).map(k => parseFloat(k)))
+                        .range([height, 0]);
+                } else {
+                    y[dim.name] = d3.scaleLinear()
+                        .domain(d3.extent(data, d => d[dim.name]))
+                        .range([height, 0]);
+                }
+            });
+
+            // build the x scale (position of each axis)
+            const x = d3.scalePoint()
+                .range([0, width])
+                .domain(dimensions.map(d => d.name));
+
+            // path function to draw lines
+            const line = d3.line()
+                .defined(d => !isNaN(d[1]))
+                .x(d => x(d[0]))
+                .y(d => d[1]);
+
+            // add a group for each dimension axis
+            const axes = svg.selectAll(".dimension")
+                .data(dimensions)
+                .enter().append("g")
+                .attr("class", "dimension")
+                .attr("transform", d => `translate(${x(d.name)},0)`);
+
+            // create categorical axis formatters
+            const formatters = {};
+            dimensions.forEach(dim => {
+                if (dim.type === "categorical") {
+                    formatters[dim.name] = d => dim.categories[d] || d;
+                }
+            });
+
+            // add axes with proper formatters for categorical variables
+            axes.append("g")
+                .attr("class", "axis")
+                .each(function(d) { 
+                    // use formatters for categorical variables
+                    const axis = d3.axisLeft().scale(y[d.name]);
+                    if (d.type === "categorical") {
+                        axis.tickFormat(formatters[d.name]);
+                    }
+                    d3.select(this).call(axis);
+                })
+                .append("text")
+                .attr("y", -9)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#000")
+                .text(d => d.label)
+                .style("font-size", "10px");
+
+            // add background lines for context
+            const background = svg.append("g")
+                .attr("class", "background")
+                .selectAll("path")
+                .data(data)
+                .enter().append("path")
+                .attr("d", d => {
+                    return line(dimensions.map(p => {
+                        return [p.name, y[p.name](d[p.name])];
+                    }));
+                })
+                .style("fill", "none")
+                .style("stroke", "#ddd")
+                .style("stroke-width", 1)
+                .style("opacity", 0.3);
+
+            // add foreground lines (initially hidden, will be revealed in transition)
+            const foreground = svg.append("g")
+                .attr("class", "foreground")
+                .selectAll("path")
+                .data(data)
+                .enter().append("path")
+                .attr("d", d => {
+                    return line(dimensions.map(p => {
+                        return [p.name, y[p.name](d[p.name])];
+                    }));
+                })
+                .style("fill", "none")
+                .style("stroke", "#3498db")
+                .style("stroke-width", 1.5)
+                .style("opacity", 0);
+
+            // add transition to reveal lines
+            foreground.transition()
+                .duration(800)
+                .delay((d, i) => i * 5)
+                .style("opacity", 0.7);
+
+            // add tooltip div
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "d3-tooltip")
+                .style("opacity", 0);
+                
+            // add hover interaction with tooltip
+            foreground
+                .on("mouseover", function(event, d) {
+                    // highlight the hovered line
+                    d3.select(this)
+                        .style("stroke", "#e74c3c")
+                        .style("stroke-width", 3)
+                        .style("opacity", 1)
+                        .raise();
+                    
+                    // show tooltip with player info
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    
+                    tooltip.html(`
+                        <strong>${d.name}</strong><br/>
+                        Age: ${d.player_age}<br/>
+                        Bats: ${d.bats} / Throws: ${d.throws}<br/>
+                        AVG/OBP/SLG: ${d.batting_avg.toFixed(3)}/${d.on_base_percent.toFixed(3)}/${d.slg_percent.toFixed(3)}<br/>
+                        OPS: ${d.on_base_plus_slg.toFixed(3)} / wOBA: ${d.woba.toFixed(3)}<br/>
+                        BB%: ${d.bb_percent.toFixed(1)}%<br/>
+                        Height: ${Math.floor(d.height/12)}'${Math.round(d.height%12)}" / Weight: ${d.weight} lbs
+                    `)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function() {
+                    // restore line style
+                    d3.select(this)
+                        .style("stroke", "#3498db")
+                        .style("stroke-width", 1.5)
+                        .style("opacity", 0.7);
+                    
+                    // hide tooltip
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+
+        }).catch(error => {
+            console.error(`error fetching data for parallel coordinates (${apiUrl}):`, error);
+            svg.append("text")
+                .attr("x", width/2)
+                .attr("y", height/2)
+                .attr("text-anchor", "middle")
+                .text("error loading data.");
+        });
+    }
+
     // --- Initialize all charts ---
     function initializeDashboard() {
         populateYearFilter(); // This will also call drawPlayerBarChart for the default year
@@ -289,8 +496,8 @@ document.addEventListener('DOMContentLoaded', function () {
         drawLineChart('chart-line', '/api/data/line');
         drawScatterPlot('chart-scatter', '/api/data/scatter');
         drawPieChart('chart-pie', '/api/data/pie');
+        drawParallelCoordinates(); // add parallel coordinates chart
     }
-
     initializeDashboard();
 
     // --- Responsive Resizing ---
