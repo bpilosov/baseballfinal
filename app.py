@@ -14,20 +14,17 @@ DATA_FILE_PATH = "data/stats1524_handedness_people.csv"
 _df_stats = None
 
 def get_stats_data():
-    """Loads the CSV data into a pandas DataFrame and caches it."""
+    """loads the CSV data into a pandas DataFrame and caches it"""
     global _df_stats
     if _df_stats is None:
         try:
             _df_stats = pd.read_csv(DATA_FILE_PATH)
-            print(f"Successfully loaded data from {DATA_FILE_PATH}")
-            # print(f"DataFrame dtypes: \n{_df_stats.dtypes}")
+            print(f"successfully loaded data from {DATA_FILE_PATH}")
         except FileNotFoundError:
-
-            print(f"Error: The data file was not found at {DATA_FILE_PATH}")
-            _df_stats = pd.DataFrame() # Return empty DataFrame on error
-
+            print(f"error: the data file was not found at {DATA_FILE_PATH}")
+            _df_stats = pd.DataFrame() # return empty DataFrame on error
         except Exception as e:
-            print(f"Error loading or processing data: {e}")
+            print(f"error loading or processing data: {e}")
             _df_stats = pd.DataFrame()
     return _df_stats
 
@@ -35,8 +32,8 @@ def get_stats_data():
 
 @app.route('/')
 def index():
-    """Serves the main HTML page for the dashboard."""
-    get_stats_data() # Load data on first request if not already loaded
+    """serves the main HTML page for the dashboard"""
+    get_stats_data() # load data on first request if not already loaded
     return render_template('index.html')
 
 # --- API Endpoints for D3.js Charts ---
@@ -70,7 +67,7 @@ def parallel_coords_data():
     
     # format data for d3 parallel coordinates
     result = []
-    for _, row in data_subset.iterrows():  # limit to 100 players for performance
+    for _, row in data_subset.iterrows():
         player_data = {
             'name': row['last_name, first_name'],
             'player_age': float(row['player_age']),
@@ -81,9 +78,7 @@ def parallel_coords_data():
             'on_base_plus_slg': float(row['on_base_plus_slg']),
             'woba': float(row['woba']),
             'bats': row['BATS'],
-            'bats_num': float(row['bats_num']),
             'throws': row['THROWS'],
-            'throws_num': float(row['throws_num']),
             'height': float(row['height']),
             'weight': float(row['weight'])
         }
@@ -94,36 +89,36 @@ def parallel_coords_data():
 @app.route('/api/player_home_runs')
 def player_home_runs():
     """
-    Provides player home run data for a given year.
-    Filters by year, sums HR per player, and returns top N players by HR.
+    provides player home run data for a given year
+    filters by year, sums HR per player, and returns top N players by HR
     """
     year = request.args.get('year', default='2024', type=int)
-    top_n = request.args.get('top_n', default=20, type=int) # Number of top players to show
+    top_n = request.args.get('top_n', default=10, type=int) # number of top players to show
 
-    df = _df_stats[["year", "last_name, first_name", "home_run"]].copy()
+    df = get_stats_data()
+    
+    if df.empty:
+        return jsonify([])
 
-    # if df.empty or 'year' not in df.columns or 'player_id' not in df.columns or 'home_run' not in df.columns:
-    #     return jsonify([])
-
-    # Filter by year
+    # filter by year
     year_data = df[df['year'] == year]
 
     if year_data.empty:
         return jsonify([])
 
-    # Group by playerID and sum HRs
+    # group by player name and sum HRs
     player_hrs = year_data.groupby('last_name, first_name')['home_run'].sum().reset_index()
     
-    # Sort by HR in descending order and take top N
+    # sort by HR in descending order and take top N
     top_players_hrs = player_hrs.sort_values(by='home_run', ascending=False).head(top_n)
     
-    # Format for D3 bar chart: [{'name': playerID, 'value': HR}, ...]
-    chart_data = [{'name': str(row['last_name, first_name']), 'value': int(row['home_run'])} for index, row in top_players_hrs.iterrows()]
+    # format for D3 bar chart: [{'name': player_name, 'value': HR}, ...]
+    chart_data = [{'name': str(row['last_name, first_name']), 'value': int(row['home_run'])} 
+                 for index, row in top_players_hrs.iterrows()]
     
     return jsonify(chart_data)
 
-
-# --- API Endpoints for Other Charts (Unchanged from previous version) ---
+# --- API Endpoints for Other Charts ---
 @app.route('/api/data/line')
 def data_line():
     """Provides data for the line chart."""

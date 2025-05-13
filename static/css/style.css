@@ -309,3 +309,88 @@ body {
     .pane-title { font-size: 1em; }
     .filter-container select, .filter-container label { font-size: 0.8em;}
 }
+
+/* Adding styles for the PCP mode toggle button */
+.pcp-controls {
+    display: flex;
+    align-items: center;
+}
+
+.mode-toggle {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.mode-toggle:hover {
+    background-color: #2980b9;
+    transform: translateY(-1px);
+}
+
+.mode-toggle.rearrange-mode {
+    background-color: #e74c3c;
+}
+
+.mode-toggle.rearrange-mode:hover {
+    background-color: #c0392b;
+}
+
+.mode-text {
+    margin-left: 5px;
+}
+
+/* style for when drag mode is active */
+.dimension.drag-enabled path,
+.dimension.drag-enabled line {
+    cursor: grab;
+}
+
+.dimension.drag-enabled:active path,
+.dimension.drag-enabled:active line {
+    cursor: grabbing;
+}
+
+/* style for disabled brushes */
+.brush-disabled rect.selection {
+    display: none;
+}
+
+.brush-disabled .handle {
+    display: none;
+}
+
+/* tooltip enhancements */
+.d3-tooltip {
+    min-width: 160px;
+}
+
+.d3-tooltip:after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -10px;
+    border-width: 10px;
+    border-style: solid;
+    border-color: rgba(45, 62, 80, 0.95) transparent transparent transparent;
+}
+
+/* responsive layout adjustments */
+@media (max-width: 850px) {
+    .pane-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .pcp-controls {
+        margin-top: 10px;
+    }
+}
