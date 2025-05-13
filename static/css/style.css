@@ -6,7 +6,8 @@ body {
     color: #333;
     display: flex;
     flex-direction: column;
-    min-height: 100vh; /* Ensure body takes at least full viewport height */
+    height: 100vh; /* Strictly set body height to full viewport height */
+    overflow: hidden; /* Prevent scrolling on the body */
 }
 
 /* Dashboard Header Styling */
@@ -16,7 +17,9 @@ body {
     padding: 15px 30px;
     text-align: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    flex-shrink: 0; /* Prevent header from shrinking */
+    flex-shrink: 0; /* Prevent header from shrinking or growing */
+    position: relative; /* Optional: for z-index if needed, though not currently */
+    z-index: 10; /* Ensure header stays above content if any overlap issues (unlikely here) */
 }
 
 .dashboard-header h1 {
@@ -28,12 +31,14 @@ body {
 /* Dashboard Container: CSS Grid for 2x2 Layout (Quarters) */
 .dashboard-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 25px;
-    padding: 25px;
-    flex-grow: 1;
+    grid-template-columns: 1fr 1fr; /* Two equal-width columns */
+    grid-template-rows: 1fr 1fr;    /* Two equal-height rows */
+    gap: 20px; /* Slightly reduced gap for more content space */
+    padding: 20px; /* Slightly reduced padding */
+    flex-grow: 1; /* Allow this container to take up remaining vertical space */
     box-sizing: border-box;
+    min-height: 0; /* Crucial for flex children that might otherwise overflow */
+    overflow: hidden; /* Ensure the container itself doesn't scroll */
 }
 
 /* Individual Dashboard Pane Styling */
@@ -41,16 +46,16 @@ body {
     background-color: #ffffff;
     border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    padding: 20px;
+    padding: 15px; /* Slightly reduced padding */
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: hidden; /* This is key: content inside pane will be clipped or should be scrollable internally if needed */
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
 .dashboard-pane:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-3px); /* Subtle hover effect */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 /* Pane Header for Title and Filters */
@@ -58,17 +63,17 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-    flex-shrink: 0;
+    margin-bottom: 10px; /* Reduced margin */
+    flex-shrink: 0; /* Prevent pane header from shrinking */
 }
 
 .pane-title {
     margin-top: 0;
-    margin-bottom: 0; /* Adjusted as it's now in a flex container */
-    font-size: 1.3em;
+    margin-bottom: 0;
+    font-size: 1.2em; /* Slightly adjusted font size */
     color: #34495e;
     font-weight: 500;
-    text-align: left; /* Align to left as filter is on right */
+    text-align: left;
 }
 
 .filter-container {
@@ -93,19 +98,21 @@ body {
 
 /* Chart Container Styling (where SVGs will go) */
 .chart-container {
-    flex-grow: 1;
+    flex-grow: 1; /* Allow chart container to take up available space in pane */
     width: 100%;
-    display: flex;
+    display: flex; /* Using flex to help center SVG if it's smaller */
     align-items: center;
     justify-content: center;
-    min-height: 0;
+    min-height: 0; /* Essential for flex children to shrink correctly and not overflow parent */
+    overflow: hidden; /* Ensure chart container itself doesn't cause scroll; SVG should fit */
 }
 
 .chart-container svg {
     width: 100%;
     height: 100%;
-    max-width: 100%;
-    max-height: 100%;
+    max-width: 100%; /* Ensure SVG doesn't exceed container width */
+    max-height: 100%; /* Ensure SVG doesn't exceed container height */
+    display: block; /* Removes extra space below inline SVGs */
 }
 
 /* D3.js specific styles */
@@ -117,7 +124,7 @@ body {
 }
 
 .axis text {
-    font-size: 0.75em; /* Slightly smaller for potentially long player IDs */
+    font-size: 0.75em;
     fill: #555;
 }
 
@@ -138,13 +145,28 @@ body {
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.2s;
+    z-index: 100; /* Ensure tooltip is above other elements */
 }
 
 /* Responsive adjustments */
+/* For smaller screens, scrolling might become necessary if content can't be shrunk further.
+   The current media queries change to a single column layout.
+   To strictly prevent scrolling even on smaller screens, the row heights would
+   need to be more carefully managed, perhaps using fr units or viewport units,
+   and chart complexity might need to be reduced.
+   The request was for "standard screen", so these are less critical for that specific request.
+*/
 @media (max-width: 850px) {
+    body {
+        height: auto; /* Allow scrolling on smaller devices if content overflows */
+        min-height: 100vh;
+        overflow-y: auto; /* Explicitly allow vertical scroll */
+    }
     .dashboard-container {
         grid-template-columns: 1fr;
+        /* This could cause scrolling if 4 * 350px + header + padding > viewport height */
         grid-template-rows: repeat(4, minmax(350px, auto));
+        overflow: visible; /* Allow container to scroll if its content (panes) overflows */
     }
     .dashboard-header h1 { font-size: 1.5em; }
     .pane-title { font-size: 1.1em; }
@@ -155,7 +177,11 @@ body {
 @media (max-width: 480px) {
     .dashboard-header { padding: 10px 15px; }
     .dashboard-header h1 { font-size: 1.3em; }
-    .dashboard-container { padding: 15px; gap: 15px; }
+    .dashboard-container {
+        padding: 15px;
+        gap: 15px;
+        grid-template-rows: repeat(4, minmax(300px, auto)); /* Adjust min height for very small screens */
+    }
     .dashboard-pane { padding: 15px; }
     .pane-title { font-size: 1em; }
     .filter-container select, .filter-container label { font-size: 0.8em;}
