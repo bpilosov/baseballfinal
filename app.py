@@ -1,5 +1,4 @@
 from flask import Flask, render_template, jsonify, request
-import random
 import pandas as pd
 import numpy as np
 import json
@@ -48,13 +47,22 @@ def parallel_coords_data():
     if df.empty:
         return jsonify([])
     
+    # get position filter if provided
+    position = request.args.get('position', default=None)
+    
     # select only the columns we need for parallel coordinates
     cols = ['last_name, first_name', 'player_age', 'bb_percent', 'batting_avg', 
             'slg_percent', 'on_base_percent', 'on_base_plus_slg', 'woba', 
-            'BATS', 'THROWS', 'height', 'weight']
+            'POS', 'BATS', 'THROWS', 'height', 'weight']
     
     # handle missing data - drop rows with NaN in our columns of interest
     data_subset = df[cols].dropna()
+    
+    # apply position filter if provided
+    if position:
+        # Split multiple positions if needed (e.g., "1B,OF")
+        positions = position.split(',')
+        data_subset = data_subset[data_subset['POS'].isin(positions)]
     
     # convert categorical variables to numeric for parallel coords
     # create a mapping for BATS: L=0, R=1, B=2
@@ -77,6 +85,7 @@ def parallel_coords_data():
             'on_base_percent': float(row['on_base_percent']),
             'on_base_plus_slg': float(row['on_base_plus_slg']),
             'woba': float(row['woba']),
+            'position': row['POS'],
             'bats': row['BATS'],
             'throws': row['THROWS'],
             'height': float(row['height']),
@@ -94,6 +103,7 @@ def player_home_runs():
     """
     year = request.args.get('year', default='2024', type=int)
     top_n = request.args.get('top_n', default=10, type=int) # number of top players to show
+    position = request.args.get('position', default=None)
 
     df = get_stats_data()
     
@@ -105,6 +115,11 @@ def player_home_runs():
 
     if year_data.empty:
         return jsonify([])
+    
+    # apply position filter if provided
+    if position:
+        positions = position.split(',')
+        year_data = year_data[year_data['POS'].isin(positions)]
 
     # group by player name and sum HRs
     player_hrs = year_data.groupby('last_name, first_name')['home_run'].sum().reset_index()
@@ -113,30 +128,49 @@ def player_home_runs():
     top_players_hrs = player_hrs.sort_values(by='home_run', ascending=False).head(top_n)
     
     # format for D3 bar chart: [{'name': player_name, 'value': HR}, ...]
-    chart_data = [{'name': str(row['last_name, first_name']), 'value': int(row['home_run'])} 
+    chart_data = [{'name': str(row['last_name, first_name']), 'value': int(row['home_run']), 
+                  'position': str(year_data[year_data['last_name, first_name'] == row['last_name, first_name']]['POS'].iloc[0])} 
                  for index, row in top_players_hrs.iterrows()]
     
     return jsonify(chart_data)
 
-# --- API Endpoints for Other Charts ---
-@app.route('/api/data/line')
-def data_line():
-    """Provides data for the line chart."""
-    data = [{'x': i, 'y': random.randint(20, 80)} for i in range(10)]
-    return jsonify(data)
-
-@app.route('/api/data/scatter')
-def data_scatter():
-    """Provides data for the scatter plot."""
-    data = [{'x': random.randint(0, 100), 'y': random.randint(0, 100), 'r': random.randint(3, 12)} for _ in range(25)]
-    return jsonify(data)
-
-@app.route('/api/data/pie')
-def data_pie():
-    """Provides data for the pie chart."""
-    labels = ['Alpha', 'Beta', 'Gamma', 'Delta']
-    data = [{'label': label, 'value': random.randint(10, 70)} for label in labels]
-    return jsonify(data)
+@app.route('/api/position_stats')
+def position_stats():
+    """Provides average statistics grouped by player position"""
+    df = get_stats_data()
+    
+    if df.empty:
+        return jsonify([])
+    
+    # Group by position and calculate average stats
+    position_stats = df.groupby('POS').agg({
+        'batting_avg': 'mean',
+        'slg_percent': 'mean',
+        'on_base_percent': 'mean',
+        'on_base_plus_slg': 'mean',
+        'bb_percent': 'mean',
+        'k_percent': 'mean',
+        'woba': 'mean',
+        'home_run': 'mean'
+    }).reset_index()
+    
+    # Format for D3
+    result = []
+    for _, row in position_stats.iterrows():
+        position_data = {
+            'position': row['POS'],
+            'batting_avg': round(float(row['batting_avg']), 3),
+            'slg': round(float(row['slg_percent']), 3),
+            'obp': round(float(row['on_base_percent']), 3),
+            'ops': round(float(row['on_base_plus_slg']), 3),
+            'bb_percent': round(float(row['bb_percent']), 1),
+            'k_percent': round(float(row['k_percent']), 1),
+            'woba': round(float(row['woba']), 3),
+            'hr': round(float(row['home_run']), 1)
+        }
+        result.append(position_data)
+    
+    return jsonify(result)
 
 # --- Main Execution ---
 

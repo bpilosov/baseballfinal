@@ -13,7 +13,16 @@
     </header>
 
     <div class="dashboard-container">
+        <!-- Position Filter Pane -->
         <div id="pane-tl" class="dashboard-pane">
+            <div class="pane-header">
+                <h3 class="pane-title">Position Filter</h3>
+            </div>
+            <div id="chart-field" class="chart-container position-filter-container"></div>
+        </div>
+
+        <!-- Home Runs Chart -->
+        <div id="pane-tr" class="dashboard-pane">
             <div class="pane-header">
                 <h3 class="pane-title">Player Home Runs</h3>
                 <div class="filter-container">
@@ -24,16 +33,28 @@
             <div id="chart-bar" class="chart-container"></div>
         </div>
 
-        <div id="pane-tr" class="dashboard-pane">
-            <h3 class="pane-title">Line Chart</h3>
-            <div id="chart-line" class="chart-container"></div>
-        </div>
-
+        <!-- Position Stats Radar Chart -->
         <div id="pane-bl" class="dashboard-pane">
-            <h3 class="pane-title">Scatter Plot</h3>
-            <div id="chart-scatter" class="chart-container"></div>
+            <div class="pane-header">
+                <h3 class="pane-title">Position Performance</h3>
+                <div id="position-stats-toggle" class="toggle-container">
+                    <span class="toggle-label">Select Stat:</span>
+                    <select id="position-stat-select">
+                        <option value="ops">OPS</option>
+                        <option value="batting_avg">Batting Avg</option>
+                        <option value="slg">SLG</option>
+                        <option value="obp">OBP</option>
+                        <option value="woba">wOBA</option>
+                        <option value="bb_percent">BB%</option>
+                        <option value="k_percent">K%</option>
+                        <option value="hr">HR</option>
+                    </select>
+                </div>
+            </div>
+            <div id="chart-position-stats" class="chart-container"></div>
         </div>
 
+        <!-- Player Attributes Parallel Coords -->
         <div id="pane-br" class="dashboard-pane">
             <div class="pane-header">
                 <h3 class="pane-title">Player Attributes Comparison</h3>
@@ -47,7 +68,14 @@
         </div>
     </div>
 
+    <!-- React for Position Filter -->
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+
+    <!-- D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <!-- Dashboard JavaScript -->
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 </html>
