@@ -151,6 +151,8 @@ body {
 /* d3 parallel coordinates specific styles */
 /* Add these styles to style.css */
 
+/* Add these styles to style.css */
+
 /* Styles for draggable parallel coordinates */
 .dimension {
     cursor: grab;
@@ -173,6 +175,37 @@ body {
 
 .dimension.active text {
     font-weight: bold;
+}
+
+/* Enhanced path styling for parallel coordinates */
+.foreground path {
+    fill: none;
+    stroke: #3498db;
+    stroke-width: 1.2px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    mix-blend-mode: multiply; /* enables color blending when lines overlap */
+    opacity: 0.15; /* low opacity for better alpha blending */
+    transition: opacity 0.3s, stroke-width 0.2s, stroke 0.2s;
+}
+
+/* Background lines styling */
+.background path {
+    fill: none;
+    stroke: #eaeaea;
+    stroke-width: 0.5px;
+    stroke-linejoin: round;
+    opacity: 0.1;
+}
+
+/* Highlighted path styling */
+.foreground path:hover,
+.foreground path.highlighted {
+    stroke: #e74c3c;
+    stroke-width: 2.5px;
+    opacity: 0.9;
+    mix-blend-mode: normal; /* override blend mode on hover */
+    filter: drop-shadow(0 0 2px rgba(231, 76, 60, 0.3));
 }
 
 /* Visual feedback for dragging */

@@ -474,7 +474,61 @@ function drawParallelCoordinates() {
             .style("font-size", "12px")
             .style("cursor", "move");
 
-        // add background lines for context
+        // add brush functionality to each axis for filtering
+        axes.each(function(d) {
+            d3.select(this)
+                .call(d3.brushY()
+                    .extent([[-8, 0], [8, height]])
+                    .on("start", brushstart)
+                    .on("brush", brushed)
+                    .on("end", brushend)
+                );
+        });
+
+        let brushSelections = {};
+
+        // brush event handlers
+        function brushstart() {
+            foreground.each(function(d) {
+                d._initial_opacity = d3.select(this).style("opacity");
+            });
+        }
+
+        function brushed(event, dimension) {
+            if (event.selection) {
+                // get selection range
+                const range = event.selection.map(y[dimension.name].invert);
+                
+                // store this brush's selection
+                brushSelections[dimension.name] = range;
+                
+                // filter lines based on all active brushes
+                foreground.style("opacity", d => {
+                    return Object.entries(brushSelections).every(([dim, range]) => {
+                        const value = d[dim];
+                        return value >= range[1] && value <= range[0]; // y axis is inverted
+                    }) ? null : 0.02; // use CSS opacity for matched, very faint for non-matched
+                });
+            }
+        }
+
+        function brushend(event) {
+            if (!event.selection) {
+                // if this brush was cleared, remove its selection
+                const dimension = d3.select(this).datum();
+                delete brushSelections[dimension.name];
+                
+                // if no brushes remain, restore all lines
+                if (Object.keys(brushSelections).length === 0) {
+                    foreground.style("opacity", null); // use CSS default
+                } else {
+                    // otherwise, reapply the remaining brushes
+                    brushed({selection: true}, dimension);
+                }
+            }
+        }
+
+        // add background lines for context with softer styling
         const background = svg.append("g")
             .attr("class", "background")
             .selectAll("path")
@@ -484,13 +538,10 @@ function drawParallelCoordinates() {
                 return line(dimensions.map(p => {
                     return [p.name, y[p.name](d[p.name])];
                 }));
-            })
-            .style("fill", "none")
-            .style("stroke", "#ddd")
-            .style("stroke-width", 1)
-            .style("opacity", 0.3);
+            });
+            // styling now controlled by CSS
 
-        // add foreground lines (initially hidden, will be revealed in transition)
+        // add foreground lines with enhanced path styling and alpha blending
         const foreground = svg.append("g")
             .attr("class", "foreground")
             .selectAll("path")
@@ -501,16 +552,20 @@ function drawParallelCoordinates() {
                     return [p.name, y[p.name](d[p.name])];
                 }));
             })
-            .style("fill", "none")
-            .style("stroke", "#3498db")
-            .style("stroke-width", 1.5)
-            .style("opacity", 0);
+            // basic attributes now controlled by CSS for better blending
+            .style("opacity", 0); // start invisible for transition
 
-        // add transition to reveal lines
+        // create color scale for categorical coloring (optional)
+        // can color by position (e.g. OF, 1B, etc)
+        const positionScale = d3.scaleOrdinal()
+            .domain(["OF", "1B", "2B", "3B", "SS", "C", "DH"])
+            .range(d3.schemeCategory10);
+
+        // add transition to reveal lines with slight stagger for visual interest
         foreground.transition()
-            .duration(800)
-            .delay((d, i) => i * 5)
-            .style("opacity", 0.7);
+            .duration(1200)
+            .delay((d, i) => i * 4)
+            .style("opacity", null); // use the CSS value
 
         // add tooltip div
         const tooltip = d3.select("body").append("div")
@@ -522,10 +577,8 @@ function drawParallelCoordinates() {
             .on("mouseover", function(event, d) {
                 // highlight the hovered line
                 d3.select(this)
-                    .style("stroke", "#e74c3c")
-                    .style("stroke-width", 3)
-                    .style("opacity", 1)
-                    .raise();
+                    .classed("highlighted", true)
+                    .raise(); // bring to front
                 
                 // show tooltip with player info
                 tooltip.transition()
@@ -547,9 +600,7 @@ function drawParallelCoordinates() {
             .on("mouseout", function() {
                 // restore line style
                 d3.select(this)
-                    .style("stroke", "#3498db")
-                    .style("stroke-width", 1.5)
-                    .style("opacity", 0.7);
+                    .classed("highlighted", false);
                 
                 // hide tooltip
                 tooltip.transition()
@@ -577,6 +628,7 @@ function drawParallelCoordinates() {
             .text("error loading data.");
     });
 }
+
     // --- Initialize all charts ---
     function initializeDashboard() {
         populateYearFilter(); // This will also call drawPlayerBarChart for the default year
