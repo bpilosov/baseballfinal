@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4-Pane D3.js Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+</head>
+<body>
+    <header class="dashboard-header">
+        <h1>Interactive Data Dashboard</h1>
+    </header>
+
+    <div class="dashboard-container">
+        <div id="pane-tl" class="dashboard-pane">
+            <div class="pane-header">
+                <h3 class="pane-title">Player Home Runs</h3>
+                <div class="filter-container">
+                    <label for="year-filter">Year:</label>
+                    <select id="year-filter"></select>
+                </div>
+            </div>
+            <div id="chart-bar" class="chart-container"></div>
+        </div>
+        <div id="pane-tr" class="dashboard-pane">
+            <h3 class="pane-title">Line Chart</h3>
+            <div id="chart-line" class="chart-container"></div>
+        </div>
+        <div id="pane-bl" class="dashboard-pane">
+            <h3 class="pane-title">Scatter Plot</h3>
+            <div id="chart-scatter" class="chart-container"></div>
+        </div>
+        <div id="pane-br" class="dashboard-pane">
+            <h3 class="pane-title">Pie Chart</h3>
+            <div id="chart-pie" class="chart-container"></div>
+        </div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
