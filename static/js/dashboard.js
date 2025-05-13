@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // --- Populate Year Filter Dropdown ---
+    // populate year filter dropdown
     function populateYearFilter() {
         const dropdown = d3.select('#year-filter');
         if (dropdown.empty()) {
@@ -131,33 +131,18 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        d3.json('/api/available_years').then(years => {
-            if (!years || years.length === 0) {
-                dropdown.append('option').text('No years available');
-                // Attempt to draw chart for default year even if dropdown fails
-                drawPlayerBarChart(DEFAULT_YEAR);
-                return;
-            }
-
+            const years = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
             years.forEach(year => {
                 dropdown.append('option')
                     .attr('value', year)
                     .text(year);
-            });
+        });
 
-            // Set default year and trigger chart draw
             dropdown.property('value', DEFAULT_YEAR);
             drawPlayerBarChart(DEFAULT_YEAR);
 
-            // Add event listener for changes
             dropdown.on('change', function() {
                 drawPlayerBarChart(this.value);
-            });
-
-        }).catch(error => {
-            console.error("Error fetching available years:", error);
-            // Attempt to draw chart for default year even if dropdown fails
-            drawPlayerBarChart(DEFAULT_YEAR);
         });
     }
 
