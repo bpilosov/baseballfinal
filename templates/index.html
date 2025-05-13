@@ -13,6 +13,11 @@
     </header>
 
     <div class="dashboard-container">
+        <div id="pane-tr" class="dashboard-pane">
+            <h3 class="pane-title">Line Chart</h3>
+            <div id="chart-line" class="chart-container"></div>
+        </div>
+
         <div id="pane-tl" class="dashboard-pane">
             <div class="pane-header">
                 <h3 class="pane-title">Player Home Runs</h3>
@@ -23,21 +28,18 @@
             </div>
             <div id="chart-bar" class="chart-container"></div>
         </div>
-        <div id="pane-tr" class="dashboard-pane">
-            <h3 class="pane-title">Line Chart</h3>
-            <div id="chart-line" class="chart-container"></div>
+
+        <div id="pane-br" class="dashboard-pane"> <h3 class="pane-title">Parallel Coordinates Plot</h3>
+            <div id="chart-parallel-coords" class="chart-container"></div>
         </div>
+
         <div id="pane-bl" class="dashboard-pane">
             <h3 class="pane-title">Scatter Plot</h3>
             <div id="chart-scatter" class="chart-container"></div>
         </div>
-        <div id="pane-br" class="dashboard-pane">
-            <h3 class="pane-title">Pie Chart</h3>
-            <div id="chart-pie" class="chart-container"></div>
-        </div>
     </div>
 
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="/static/js/dashboard.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 </html>
