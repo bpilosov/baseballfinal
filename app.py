@@ -152,8 +152,13 @@ def parallel_coords_data():
         return jsonify([])
     
     # get filters if provided
+    year = request.args.get('year', default=None, type=int)
     position = request.args.get('position', default=None)
     handedness = request.args.get('handedness', default=None)
+    
+    # filter by year if provided
+    if year:
+        df = df[df['year'] == year]
     
     # select only the columns we need for parallel coordinates
     cols = ['last_name, first_name', 'player_age', 'bb_percent', 'batting_avg', 
@@ -169,11 +174,42 @@ def parallel_coords_data():
         positions = position.split(',')
         data_subset = data_subset[data_subset['POS'].isin(positions)]
     
-    # apply handedness filter if provided
+    # apply handedness filter if active
     if handedness:
         handedness_values = handedness.split(',')
         data_subset = data_subset[data_subset['BATS'].isin(handedness_values)]
     
+    # convert categorical variables to numeric for parallel coords
+    # create a mapping for BATS: L=0, R=1, B=2
+    bats_map = {'L': 0, 'R': 1, 'B': 2}
+    data_subset['bats_num'] = data_subset['BATS'].map(bats_map)
+    
+    # create mapping for THROWS: L=0, R=1
+    throws_map = {'L': 0, 'R': 1}
+    data_subset['throws_num'] = data_subset['THROWS'].map(throws_map)
+    
+    # format data for d3 parallel coordinates
+    result = []
+    for _, row in data_subset.iterrows():
+        player_data = {
+            'name': row['last_name, first_name'],
+            'player_age': float(row['player_age']),
+            'bb_percent': float(row['bb_percent']),
+            'batting_avg': float(row['batting_avg']),
+            'slg_percent': float(row['slg_percent']),
+            'on_base_percent': float(row['on_base_percent']),
+            'on_base_plus_slg': float(row['on_base_plus_slg']),
+            'woba': float(row['woba']),
+            'position': row['POS'],
+            'bats': row['BATS'],
+            'throws': row['THROWS'],
+            'height': float(row['height']),
+            'weight': float(row['weight'])
+        }
+        result.append(player_data)
+    
+    return jsonify(result)
+ 
     # convert categorical variables to numeric for parallel coords
     # create a mapping for BATS: L=0, R=1, B=2
     bats_map = {'L': 0, 'R': 1, 'B': 2}

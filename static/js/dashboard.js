@@ -653,19 +653,20 @@ function populateYearFilter() {
 
     // --- Parallel Coordinates Chart ---
     function drawParallelCoordinates() {
-        const containerId = 'chart-parallel-coords';
-        let apiUrl = '/api/parallel_coords_data';
-        
-        // Add position filter if active
-        if (selectedPositions.length > 0) {
-            apiUrl += `?position=${selectedPositions.join(',')}`;
-        }
-        
-        // Add handedness filter if active
-        if (selectedHandedness.length > 0) {
-            const separator = apiUrl.includes('?') ? '&' : '?';
-            apiUrl += `${separator}handedness=${selectedHandedness.join(',')}`;
-        }
+    const containerId = 'chart-parallel-coords';
+    const selectedYear = d3.select('#year-filter').property('value') || DEFAULT_YEAR;
+    let apiUrl = `/api/parallel_coords_data?year=${selectedYear}`;
+    
+    // Add position filter if active
+    if (selectedPositions.length > 0) {
+        apiUrl += `&position=${selectedPositions.join(',')}`;
+    }
+    
+    // Add handedness filter if active
+    if (selectedHandedness.length > 0) {
+        apiUrl += `&handedness=${selectedHandedness.join(',')}`;
+    }
+
 
         const chartContainer = d3.select(`#${containerId}`);
         if (chartContainer.empty()) {
@@ -1118,18 +1119,18 @@ function populateYearFilter() {
             return;
         }
 
-            const years = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
-            years.forEach(year => {
-                dropdown.append('option')
-                    .attr('value', year)
-                    .text(year);
+        const years = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
+        years.forEach(year => {
+            dropdown.append('option')
+                .attr('value', year)
+                .text(year);
         });
 
-            dropdown.property('value', DEFAULT_YEAR);
-            drawPlayerBarChart(DEFAULT_YEAR);
-
-            dropdown.on('change', function() {
-                drawPlayerBarChart(this.value);
+        dropdown.property('value', DEFAULT_YEAR);
+        
+        // Call applyFilters instead of just drawPlayerBarChart to update all charts
+        dropdown.on('change', function() {
+            applyFilters();
         });
     }
 
