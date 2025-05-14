@@ -11,6 +11,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // Track selected handedness filters
     let selectedHandedness = [];
 
+    // track players filtered by pcp brushing
+    let pcpFilteredPlayerNames = [];
+    let isPcpFiltering = false;
+
     // --- Helper function to get dimensions of a chart container ---
     function getChartDimensions(containerElement) {
         if (!containerElement || containerElement.node() === null) {
@@ -79,10 +83,10 @@ function initializePositionFilter() {
     // draw home plate
     svg.append('rect')
         .attr('transform', 'matrix(0.7071,-0.7071,0.7071,0.7071,-20.9376,44.7822)')
-        .attr('x', 31.718)
-        .attr('y', 35.793)
-        .attr('width', 23.745)
-        .attr('height', 23.745)
+        .attr('x', '31.718')
+        .attr('y', '35.793')
+        .attr('width', '23.745')
+        .attr('height', '23.745')
         .attr('fill', '#faebc3')
         .attr('stroke', '#aaa9aa');
         
@@ -281,6 +285,9 @@ function populateYearFilter() {
                 .style('opacity', 0.7);
         }
         
+        // reset pcp filtering when changing position filters
+        resetPcpFiltering();
+        
         // Redraw all charts with new filter
         applyFilters();
     }
@@ -302,6 +309,9 @@ function populateYearFilter() {
             .style('background-color', '#2c3e50')
             .style('opacity', 0.7);
             
+        // reset pcp filtering
+        resetPcpFiltering();
+        
         // Redraw all charts
         applyFilters();
     }
@@ -338,6 +348,9 @@ function populateYearFilter() {
                 .classed('selected', false);
         }
         
+        // reset pcp filtering when changing handedness filters
+        resetPcpFiltering();
+        
         // apply filters
         applyFilters();
     }
@@ -354,8 +367,17 @@ function populateYearFilter() {
         d3.selectAll('.handedness-option')
             .classed('selected', false);
             
+        // reset pcp filtering
+        resetPcpFiltering();
+        
         // apply filters
         applyFilters();
+    }
+    
+    // Reset PCP filtering state
+    function resetPcpFiltering() {
+        pcpFilteredPlayerNames = [];
+        isPcpFiltering = false;
     }
     
     // Apply all filters
@@ -371,6 +393,9 @@ function populateYearFilter() {
         const containerId = 'chart-bar';
         const apiUrlBase = '/api/player_home_runs';
         let apiUrl = `${apiUrlBase}?year=${year}`;
+        if (isPcpFiltering) {
+            apiUrl += `&top_n=-1`;
+        }
         
         // Add position filter if active
         if (selectedPositions.length > 0) {
@@ -412,6 +437,22 @@ function populateYearFilter() {
                    .style("font-size", "14px")
                    .text(`No home run data available for ${year}${selectedPositions.length > 0 ? ' with selected position filters' : ''}${selectedHandedness.length > 0 ? ' and handedness filters' : ''}.`);
                 return;
+            }
+
+            // Apply PCP filtering if active
+            if (isPcpFiltering && pcpFilteredPlayerNames.length > 0) {
+                const unfilteredCount = data.length;
+                data = data.filter(d => pcpFilteredPlayerNames.includes(d.name));
+                
+                if (data.length === 0) {
+                    svg.append("text")
+                       .attr("x", width / 2)
+                       .attr("y", height / 2)
+                       .attr("text-anchor", "middle")
+                       .style("font-size", "14px")
+                       .text("No players match the current PCP filters.");
+                    return;
+                }
             }
 
             // X axis: Player Names
@@ -555,93 +596,154 @@ function populateYearFilter() {
                 return;
             }
             
-            // Get selected stat
-            const selectedStat = d3.select('#position-stat-select').property('value') || 'ops';
-            
-            // Create a bar chart for position stats
-            // X axis: Positions
-            const x = d3.scaleBand()
-                .range([0, width])
-                .domain(data.map(d => d.position))
-                .padding(0.3);
+            // If PCP filtering is active, we need to recalculate position stats from player data
+            if (isPcpFiltering && pcpFilteredPlayerNames.length > 0) {
+                // Get player data to filter and recalculate position stats
+                const selectedYear = d3.select('#year-filter').property('value') || DEFAULT_YEAR;
+                const playerApiUrl = `/api/parallel_coords_data?year=${selectedYear}`;
                 
-            svg.append('g')
-                .attr('transform', `translate(0,${height})`)
-                .call(d3.axisBottom(x));
+                // Apply same position/handedness filters 
+                let filteredPlayerApiUrl = playerApiUrl;
+                if (selectedPositions.length > 0) {
+                    filteredPlayerApiUrl += `&position=${selectedPositions.join(',')}`;
+                }
+                if (selectedHandedness.length > 0) {
+                    const separator = filteredPlayerApiUrl.includes('?') ? '&' : '?';
+                    filteredPlayerApiUrl += `${separator}handedness=${selectedHandedness.join(',')}`;
+                }
                 
-            // Y axis: Selected stat
-            const y = d3.scaleLinear()
-                .domain([0, d3.max(data, d => d[selectedStat]) * 1.1])
-                .range([height, 0]);
-                
-            svg.append('g')
-                .call(d3.axisLeft(y));
-                
-            // Bars
-            svg.selectAll('.stat-bar')
-                .data(data)
-                .join('rect')
-                .attr('class', d => `stat-bar bar-${d.position}`)
-                .attr('x', d => x(d.position))
-                .attr('y', d => y(0))
-                .attr('width', x.bandwidth())
-                .attr('height', 0)
-                .transition()
-                .duration(700)
-                .delay((d,i) => i * 50)
-                .attr('y', d => y(d[selectedStat]))
-                .attr('height', d => height - y(d[selectedStat]));
-                
-            // Add tooltips
-            svg.selectAll('.stat-tooltip')
-                .data(data)
-                .join('rect')
-                .attr('class', 'stat-tooltip')
-                .attr('x', d => x(d.position))
-                .attr('y', d => y(d[selectedStat]))
-                .attr('width', x.bandwidth())
-                .attr('height', d => height - y(d[selectedStat]))
-                .attr('fill', 'transparent')
-                .on('mouseover', function(event, d) {
-                    // Show tooltip
-                    const tooltip = d3.select('body').append('div')
-                        .attr('class', 'd3-tooltip')
-                        .style('opacity', 0);
-                        
-                    tooltip.transition()
-                        .duration(200)
-                        .style('opacity', 0.9);
-                        
-                    const statName = d3.select('#position-stat-select option:checked').text();
+                d3.json(filteredPlayerApiUrl).then(playerData => {
+                    // Filter by PCP filtered players
+                    playerData = playerData.filter(p => pcpFilteredPlayerNames.includes(p.name));
                     
-                    tooltip.html(`
-                        <strong>${d.position}</strong><br/>
-                        ${statName}: ${d[selectedStat]}
-                    `)
-                    .style('left', (event.pageX + 10) + 'px')
-                    .style('top', (event.pageY - 28) + 'px');
-                })
-                .on('mouseout', function() {
-                    // Remove tooltip
-                    d3.selectAll('.d3-tooltip').remove();
+                    if (playerData.length === 0) {
+                        svg.append("text")
+                           .attr("x", width / 2)
+                           .attr("y", height / 2)
+                           .attr("text-anchor", "middle")
+                           .style("font-size", "14px")
+                           .text("No positions match the current PCP filters.");
+                        return;
+                    }
+                    
+                    // Group by position and calculate aggregated stats
+                    const positionGroups = d3.group(playerData, d => d.position);
+                    
+                    // Calculate position stats
+                    const filteredPositionStats = Array.from(positionGroups, ([position, players]) => {
+                        return {
+                            position: position,
+                            batting_avg: d3.mean(players, p => p.batting_avg),
+                            slg: d3.mean(players, p => p.slg_percent),
+                            obp: d3.mean(players, p => p.on_base_percent),
+                            ops: d3.mean(players, p => p.on_base_plus_slg),
+                            bb_percent: d3.mean(players, p => p.bb_percent),
+                            k_percent: 0, // may not be available in player data
+                            woba: d3.mean(players, p => p.woba),
+                            hr: d3.mean(players, p => 0) // may not be available in player data
+                        };
+                    });
+                    
+                    // Draw with filtered data
+                    renderPositionStatsChart(filteredPositionStats);
+                }).catch(error => {
+                    console.error("Error fetching player data for position filtering:", error);
+                    renderPositionStatsChart(data); // fallback to original data
                 });
+            } else {
+                // No PCP filtering, use original data
+                renderPositionStatsChart(data);
+            }
+            
+            // Inner function to render the chart with given data
+            function renderPositionStatsChart(chartData) {
+                // Get selected stat
+                const selectedStat = d3.select('#position-stat-select').property('value') || 'ops';
                 
-            // Add labels for X and Y axes
-            svg.append("text")
-                .attr("text-anchor", "middle")
-                .attr("x", width / 2)
-                .attr("y", height + margin.bottom - 25)
-                .style("font-size", "12px")
-                .text("Position");
-                
-            svg.append("text")
-                .attr("text-anchor", "middle")
-                .attr("transform", "rotate(-90)")
-                .attr("x", -height / 2)
-                .attr("y", -margin.left + 25)
-                .style("font-size", "12px")
-                .text(d3.select('#position-stat-select option:checked').text());
-                
+                // Create a bar chart for position stats
+                // X axis: Positions
+                const x = d3.scaleBand()
+                    .range([0, width])
+                    .domain(chartData.map(d => d.position))
+                    .padding(0.3);
+                    
+                svg.append('g')
+                    .attr('transform', `translate(0,${height})`)
+                    .call(d3.axisBottom(x));
+                    
+                // Y axis: Selected stat
+                const y = d3.scaleLinear()
+                    .domain([0, d3.max(chartData, d => d[selectedStat]) * 1.1])
+                    .range([height, 0]);
+                    
+                svg.append('g')
+                    .call(d3.axisLeft(y));
+                    
+                // Bars
+                svg.selectAll('.stat-bar')
+                    .data(chartData)
+                    .join('rect')
+                    .attr('class', d => `stat-bar bar-${d.position}`)
+                    .attr('x', d => x(d.position))
+                    .attr('y', d => y(0))
+                    .attr('width', x.bandwidth())
+                    .attr('height', 0)
+                    .transition()
+                    .duration(700)
+                    .delay((d,i) => i * 50)
+                    .attr('y', d => y(d[selectedStat]))
+                    .attr('height', d => height - y(d[selectedStat]));
+                    
+                // Add tooltips
+                svg.selectAll('.stat-tooltip')
+                    .data(chartData)
+                    .join('rect')
+                    .attr('class', 'stat-tooltip')
+                    .attr('x', d => x(d.position))
+                    .attr('y', d => y(d[selectedStat]))
+                    .attr('width', x.bandwidth())
+                    .attr('height', d => height - y(d[selectedStat]))
+                    .attr('fill', 'transparent')
+                    .on('mouseover', function(event, d) {
+                        // Show tooltip
+                        const tooltip = d3.select('body').append('div')
+                            .attr('class', 'd3-tooltip')
+                            .style('opacity', 0);
+                            
+                        tooltip.transition()
+                            .duration(200)
+                            .style('opacity', 0.9);
+                            
+                        const statName = d3.select('#position-stat-select option:checked').text();
+                        
+                        tooltip.html(`
+                            <strong>${d.position}</strong><br/>
+                            ${statName}: ${d[selectedStat].toFixed(3)}
+                        `)
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 28) + 'px');
+                    })
+                    .on('mouseout', function() {
+                        // Remove tooltip
+                        d3.selectAll('.d3-tooltip').remove();
+                    });
+                    
+                // Add labels for X and Y axes
+                svg.append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("x", width / 2)
+                    .attr("y", height + margin.bottom - 25)
+                    .style("font-size", "12px")
+                    .text("Position");
+                    
+                svg.append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("transform", "rotate(-90)")
+                    .attr("x", -height / 2)
+                    .attr("y", -margin.left + 25)
+                    .style("font-size", "12px")
+                    .text(d3.select('#position-stat-select option:checked').text());
+            }
         }).catch(error => {
             console.error(`Error fetching data for position stats chart (${apiUrl}):`, error);
             svg.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").text("Error loading data.");
@@ -657,33 +759,9 @@ function populateYearFilter() {
     const selectedYear = d3.select('#year-filter').property('value') || DEFAULT_YEAR;
     let apiUrl = `/api/parallel_coords_data?year=${selectedYear}`;
 
-    // Ensure this is defined within drawParallelCoordinates, before brush setup
-    let brushSelections = {}; 
-
-    function applyPCPFilters() {
-        const isActiveFilter = Object.keys(brushSelections).length > 0;
-
-        foreground.style("opacity", d => { // 'd' is the data for a single path/player
-            if (!isActiveFilter) {
-                return null; // No active brushes, so use default opacity (from CSS)
-            }
-            // Check if the data point 'd' passes ALL active brushes
-            const pass = Object.entries(brushSelections).every(([dimName, range]) => {
-                const value = parseFloat(d[dimName]); // Ensure value is a number
-
-                // Handle cases where data might be missing or not a number for a dimension
-                if (d[dimName] === undefined || d[dimName] === null || isNaN(value)) {
-                    return false; // Does not pass if data is invalid for a brushed dimension
-                }
-
-                // The 'range' from brushSelections is [inverted_pixel_y_top, inverted_pixel_y_bottom].
-                // For a typical D3 y-axis (data max at pixel top 0, data min at pixel bottom height),
-                // this means range[0] is the max selected data value and range[1] is the min selected data value.
-                return value >= range[1] && value <= range[0];
-            });
-            return pass ? null : 0.02; // If passes all brushes, use default opacity, else make very faint
-        });
-    }
+    // Clear PCP filtering state when redrawing
+    pcpFilteredPlayerNames = [];
+    isPcpFiltering = false;
 
     // Add position filter if active
     if (selectedPositions.length > 0) {
@@ -694,7 +772,6 @@ function populateYearFilter() {
     if (selectedHandedness.length > 0) {
         apiUrl += `&handedness=${selectedHandedness.join(',')}`;
     }
-
 
         const chartContainer = d3.select(`#${containerId}`);
         if (chartContainer.empty()) {
@@ -731,6 +808,9 @@ function populateYearFilter() {
                    .text("no player data available.");
                 return;
             }
+
+            // Store all player names initially
+            pcpFilteredPlayerNames = data.map(d => d.name);
 
             // define the dimensions we'll use for the parallel coordinates
             let dimensions = [
@@ -901,63 +981,119 @@ function populateYearFilter() {
 
             // add brush functionality to each axis for filtering
             axes.each(function(d) {
+                const axis_name = d.name;
                 const brush = d3.brushY()
-                .extent([[-8, 0], [8, height]])
-                .on("start", function(event) { brushstart(event, d_dim); }) // Pass d_dim
-                .on("brush", function(event) { brushed(event, d_dim); })   // Pass d_dim
-                .on("end", function(event) { brushend(event, d_dim); });    // Pass d_dim
+                    .extent([[-8, 0], [8, height]])
+                    .on("start", function() { brushstart(); }) 
+                    .on("brush", function(event) { brushed(event, axis_name); })   
+                    .on("end", function(event) { brushend(event, axis_name); });    
 
-                d3.select(this) // 'this' is the <g class="dimension"> element which has d_dim as its datum
-                .append("g")
-                .attr("class", "brush")
-                .call(brush);
+                d3.select(this)
+                    .append("g")
+                    .attr("class", "brush")
+                    .call(brush);
 
                 brushes.push({dimension: d.name, brush: brush});
             });
 
+            // Track active brushes and selections
             let brushSelections = {};
 
             // brush event handlers
-            // Original brushstart can be kept simple or even omitted if no specific start actions are needed.
             function brushstart() {
                 if (pcpDragMode) return;
-                // You could add logic here if needed when a brush interaction starts
+                // Nothing special needed at start
             }
 
-            function brushed(event, dimension) { // 'dimension' is the datum of the axis <g> element
+            function brushed(event, dimension) {
                 if (pcpDragMode) return;
 
-                const currentDimensionName = dimension.name;
                 if (event.selection) {
-                    // event.selection provides [pixel_coord_1, pixel_coord_2] for the brush extent.
-                    // y[currentDimensionName].invert() maps these pixel coordinates back to data values.
-                    brushSelections[currentDimensionName] = event.selection.map(y[currentDimensionName].invert);
+                    // Store the current brush selection
+                    brushSelections[dimension] = event.selection.map(y[dimension].invert);
                 } else {
-                    // This handles cases where a brush might be cleared during the 'brush' event stream.
-                    delete brushSelections[currentDimensionName];
+                    // If brush was cleared
+                    delete brushSelections[dimension];
                 }
-                applyPCPFilters(); // Apply filters live as the brush moves
+                
+                // Apply filters to PCP lines
+                applyPcpFilters();
             }
 
-            function brushend(event, dimension) { // 'dimension' is the datum of the axis <g> element
+            function brushend(event, dimension) {
                 if (pcpDragMode) return;
 
-                const currentDimensionName = dimension.name;
-                // The 'brushed' event should have kept brushSelections up-to-date.
-                // This handler primarily ensures the final state is correct, especially if a brush is cleared.
                 if (!event.selection) {
-                    delete brushSelections[currentDimensionName];
+                    // If brush was cleared
+                    delete brushSelections[dimension];
                 } else {
-                    // Ensure the selection is current based on the final state of the brush event.
-                    // This is often redundant if 'brushed' has run correctly with the same event.selection.
-                    brushSelections[currentDimensionName] = event.selection.map(y[currentDimensionName].invert);
+                    // Ensure selection is stored
+                    brushSelections[dimension] = event.selection.map(y[dimension].invert);
                 }
-                applyPCPFilters(); // Apply filters based on the final state of brushSelections
+                
+                // Apply filters to PCP lines and update other charts
+                applyPcpFilters();
+                updateOtherCharts();
+            }
+            
+            // Apply filters to PCP lines based on brush selections
+            function applyPcpFilters() {
+                const isActiveFilter = Object.keys(brushSelections).length > 0;
+                
+                // Set global filtering state
+                isPcpFiltering = isActiveFilter;
+                
+                if (!isActiveFilter) {
+                    // Reset filtered player names if no active filters
+                    pcpFilteredPlayerNames = data.map(d => d.name);
+                    foreground.style("opacity", null); // Reset to CSS default
+                    background.style("display", "none");
+                    return;
+                }
+                
+                // Make background lines visible when filtering
+                background.style("display", null);
+                
+                // Track which players pass the filters
+                const passedPlayerNames = [];
+                
+                // Apply filter to each player/path
+                foreground.style("opacity", function(d) {
+                    // Check if player passes all active brush filters
+                    const pass = Object.entries(brushSelections).every(([dim, range]) => {
+                        const value = d[dim];
+                        if (value === undefined || value === null || isNaN(value)) {
+                            return false;
+                        }
+                        // Since scale is inverted, check if value is between range[1] (min) and range[0] (max)
+                        return value >= range[1] && value <= range[0];
+                    });
+                    
+                    if (pass) {
+                        passedPlayerNames.push(d.name);
+                        return null; // Use default opacity for visible lines
+                    } else {
+                        return 0.05; // Very faint opacity for filtered-out lines
+                    }
+                });
+                
+                // Update global filtered player names
+                pcpFilteredPlayerNames = passedPlayerNames;
+            }
+            
+            // Update other charts based on PCP filtering
+            function updateOtherCharts() {
+                if (isPcpFiltering) {
+                    // Redraw other charts using the filtered player list
+                    drawPlayerBarChart(selectedYear);
+                    drawPositionStats();
+                }
             }
 
             // add background lines for context with softer styling
             const background = svg.append("g")
                 .attr("class", "background")
+                .style("display", "none") // Hide initially, show when filtering
                 .selectAll("path")
                 .data(data)
                 .enter().append("path")
