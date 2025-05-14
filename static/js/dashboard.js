@@ -30,19 +30,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return { width, height, margin, containerWidth, containerHeight };
     }
 
-// Update the position filter initialization function to remove the clear button
+// Modified position filter initialization function to center field and organize buttons in a 2x4 grid
 function initializePositionFilter() {
-    // Position codes and their display names
-    const positions = {
-        'P': { name: 'Pitcher' },
-        'C': { name: 'Catcher' },
-        '1B': { name: 'First Base' },
-        '2B': { name: 'Second Base' },
-        '3B': { name: 'Third Base' },
-        'SS': { name: 'Shortstop' },
-        'OF': { name: 'Outfield' },
-        'DH': { name: 'Designated Hitter' }
-    };
+    // Position codes and their display names - reordered as requested
+    const positions = [
+        {code: 'OF', name: 'Outfield'},
+        {code: 'SS', name: 'Shortstop'},
+        {code: '3B', name: 'Third Base'},
+        {code: '2B', name: 'Second Base'},
+        {code: '1B', name: 'First Base'},
+        {code: 'C', name: 'Catcher'},
+        {code: 'P', name: 'Pitcher'},
+        {code: 'DH', name: 'Designated Hitter'},
+    ];
     
     const fieldContainer = d3.select('#chart-field');
     if (fieldContainer.empty()) {
@@ -50,15 +50,25 @@ function initializePositionFilter() {
         return;
     }
     
-    // inject field svg 
-    const svgContainer = fieldContainer.append('div')
-        .attr('class', 'baseball-field-svg-container');
+    // create a flex container to hold both the field and the buttons
+    const flexContainer = fieldContainer.append('div')
+        .style('display', 'flex')
+        .style('width', '100%')
+        .style('height', '100%');
+    
+    // inject field svg - now takes 60% of the space and is centered
+    const svgContainer = flexContainer.append('div')
+        .attr('class', 'baseball-field-svg-container')
+        .style('flex', '0 0 60%')
+        .style('display', 'flex')
+        .style('justify-content', 'center')
+        .style('align-items', 'center');
         
-    // create svg
+    // create svg with adjusted viewbox to center the field and remove whitespace
     const svg = svgContainer.append('svg')
-        .attr('viewBox', '0 0 87.18 80')
-        .attr('width', '100%')
-        .attr('height', '100%');
+        .attr('viewBox', '0.675 0.5 85.83 70') // Adjusted to focus on the field
+        .attr('width', '90%') // Slightly reduced to help with centering
+        .attr('height', '90%');
         
     // draw the field diamond (infield)
     svg.append('path')
@@ -132,35 +142,65 @@ function initializePositionFilter() {
         });
     });
     
-    // add legend
-    const legend = fieldContainer.append('div')
-        .attr('class', 'position-filter-legend');
-        
-    legend.append('h4')
+    // create buttons container to the right of the field - takes 40% of the space
+    const buttonsContainer = flexContainer.append('div')
+        .attr('class', 'position-buttons-container')
+        .style('flex', '0 0 40%')
+        .style('display', 'flex')
+        .style('flex-direction', 'column')
+        .style('justify-content', 'center')
+        .style('padding-left', '15px');
+    
+    // add title
+    buttonsContainer.append('h4')
         .attr('class', 'legend-title')
+        .style('margin-bottom', '15px')
+        .style('text-align', 'center')
         .text('Position Filter');
-        
-    const legendItems = legend.append('div')
-        .attr('class', 'legend-items');
-        
-    Object.entries(positions).forEach(([pos, data]) => {
-        legendItems.append('div')
+    
+    // create a 2x4 grid container for position buttons
+    const gridContainer = buttonsContainer.append('div')
+        .style('display', 'grid')
+        .style('grid-template-columns', 'repeat(2, 1fr)')
+        .style('grid-template-rows', 'repeat(4, auto)')
+        .style('gap', '10px')
+        .style('width', '100%');
+    
+    // add position buttons in the specified order in a 2x4 grid
+    positions.forEach((pos, index) => {
+        gridContainer.append('div')
             .attr('class', 'legend-item')
-            .attr('data-position', pos)
+            .attr('data-position', pos.code)
+            .style('padding', '8px 10px')
+            .style('border-radius', '4px')
+            .style('background-color', '#f5f5f5')
+            .style('cursor', 'pointer')
+            .style('transition', 'background-color 0.2s')
+            .style('display', 'flex')
+            .style('align-items', 'center')
+            .style('justify-content', 'flex-start')
+            .style('font-size', '0.9em')
             .html(`
-                <span class="legend-color" style="background-color: #2c3e50; opacity: 0.7"></span>
-                <span class="legend-label">${data.name} (${pos})</span>
+                <span class="legend-color" style="background-color: #2c3e50; opacity: 0.7; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; flex-shrink: 0;"></span>
+                <span class="legend-label" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pos.name} (${pos.code})</span>
             `)
             .on('click', function() {
-                togglePositionFilter(pos);
+                togglePositionFilter(pos.code);
+            })
+            .on('mouseover', function() {
+                d3.select(this).style('background-color', '#e9e9e9');
+            })
+            .on('mouseout', function() {
+                if (!selectedPositions.includes(pos.code)) {
+                    d3.select(this).style('background-color', '#f5f5f5');
+                } else {
+                    d3.select(this).style('background-color', '#e74c3c').style('color', 'white');
+                }
             });
     });
-    
-    // Removed the clear button
 }
 
-    
-// Update handedness filter initialization to use the HTML we already added
+// Modified handedness filter initialization to remove the clear button
 function initializeHandednessFilter() {
     // Select handedness options from HTML
     const handednessOptions = d3.selectAll('.handedness-option');
@@ -171,9 +211,10 @@ function initializeHandednessFilter() {
         toggleHandednessFilter(handedness);
     });
     
-    // Add click handler to clear button
-    d3.select('#clear-handedness').on('click', clearHandednessFilters);
+    // Remove the clear button
+    d3.select('#clear-handedness').remove();
 }
+
 // Update year filter placement to the header
 function populateYearFilter() {
     const dropdown = d3.select('#year-filter');
@@ -215,7 +256,8 @@ function populateYearFilter() {
                 
             // Update legend
             d3.selectAll(`.legend-item[data-position="${position}"]`)
-                .classed('selected', true)
+                .style('background-color', '#e74c3c')
+                .style('color', 'white')
                 .select('.legend-color')
                 .style('background-color', '#e74c3c')
                 .style('opacity', 1);
@@ -232,7 +274,8 @@ function populateYearFilter() {
                 
             // Update legend
             d3.selectAll(`.legend-item[data-position="${position}"]`)
-                .classed('selected', false)
+                .style('background-color', '#f5f5f5')
+                .style('color', 'inherit')
                 .select('.legend-color')
                 .style('background-color', '#2c3e50')
                 .style('opacity', 0.7);
@@ -253,7 +296,8 @@ function populateYearFilter() {
             .attr('stroke', 'none');
             
         d3.selectAll('.legend-item')
-            .classed('selected', false)
+            .style('background-color', '#f5f5f5')
+            .style('color', 'inherit')
             .select('.legend-color')
             .style('background-color', '#2c3e50')
             .style('opacity', 0.7);
@@ -298,7 +342,7 @@ function populateYearFilter() {
         applyFilters();
     }
     
-    // Clear handedness filters
+    // Clear handedness filters - kept for internal use but button removed
     function clearHandednessFilters() {
         selectedHandedness = [];
         
@@ -1092,7 +1136,7 @@ function populateYearFilter() {
     // --- Initialize all charts ---
     function initializeDashboard() {
         initializePositionFilter();
-        initializeHandednessFilter(); // Add this line to initialize the handedness filter
+        initializeHandednessFilter(); // Initialize the handedness filter
         populateYearFilter(); // This will also call drawPlayerBarChart for the default year
         drawPositionStats();
         drawParallelCoordinates();
