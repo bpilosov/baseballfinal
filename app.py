@@ -37,6 +37,110 @@ def index():
 
 # --- API Endpoints for D3.js Charts ---
 
+# Add these changes to app.py
+
+# update the '/api/player_home_runs' endpoint:
+@app.route('/api/player_home_runs')
+def player_home_runs():
+    """
+    provides player home run data for a given year
+    filters by year, sums HR per player, and returns top N players by HR
+    """
+    year = request.args.get('year', default='2024', type=int)
+    top_n = request.args.get('top_n', default=10, type=int) # number of top players to show
+    position = request.args.get('position', default=None)
+    handedness = request.args.get('handedness', default=None)
+
+    df = get_stats_data()
+    
+    if df.empty:
+        return jsonify([])
+
+    # filter by year
+    year_data = df[df['year'] == year]
+
+    if year_data.empty:
+        return jsonify([])
+    
+    # apply position filter if provided
+    if position:
+        positions = position.split(',')
+        year_data = year_data[year_data['POS'].isin(positions)]
+    
+    # apply handedness filter if provided
+    if handedness:
+        handedness_values = handedness.split(',')
+        year_data = year_data[year_data['BATS'].isin(handedness_values)]
+
+    # group by player name and sum HRs
+    player_hrs = year_data.groupby('last_name, first_name')['home_run'].sum().reset_index()
+    
+    # sort by HR in descending order and take top N
+    top_players_hrs = player_hrs.sort_values(by='home_run', ascending=False).head(top_n)
+    
+    # format for D3 bar chart: [{'name': player_name, 'value': HR}, ...]
+    chart_data = [{'name': str(row['last_name, first_name']), 'value': int(row['home_run']), 
+                  'position': str(year_data[year_data['last_name, first_name'] == row['last_name, first_name']]['POS'].iloc[0])} 
+                 for index, row in top_players_hrs.iterrows()]
+    
+    return jsonify(chart_data)
+
+# update the '/api/position_stats' endpoint:
+@app.route('/api/position_stats')
+def position_stats():
+    """Provides average statistics grouped by player position"""
+    df = get_stats_data()
+    
+    if df.empty:
+        return jsonify([])
+    
+    # Apply filters
+    position = request.args.get('position', default=None)
+    handedness = request.args.get('handedness', default=None)
+    
+    filtered_df = df
+    
+    # Apply position filter if provided
+    if position:
+        positions = position.split(',')
+        filtered_df = filtered_df[filtered_df['POS'].isin(positions)]
+    
+    # Apply handedness filter if provided
+    if handedness:
+        handedness_values = handedness.split(',')
+        filtered_df = filtered_df[filtered_df['BATS'].isin(handedness_values)]
+    
+    # Group by position and calculate average stats
+    position_stats = filtered_df.groupby('POS').agg({
+        'batting_avg': 'mean',
+        'slg_percent': 'mean',
+        'on_base_percent': 'mean',
+        'on_base_plus_slg': 'mean',
+        'bb_percent': 'mean',
+        'k_percent': 'mean',
+        'woba': 'mean',
+        'home_run': 'mean'
+    }).reset_index()
+    
+    # Format for D3
+    result = []
+    for _, row in position_stats.iterrows():
+        position_data = {
+            'position': row['POS'],
+            'batting_avg': round(float(row['batting_avg']), 3),
+            'slg': round(float(row['slg_percent']), 3),
+            'obp': round(float(row['on_base_percent']), 3),
+            'ops': round(float(row['on_base_plus_slg']), 3),
+            'bb_percent': round(float(row['bb_percent']), 1),
+            'k_percent': round(float(row['k_percent']), 1),
+            'woba': round(float(row['woba']), 3),
+            'hr': round(float(row['home_run']), 1)
+        }
+        result.append(position_data)
+    
+    return jsonify(result)
+
+# update the '/api/parallel_coords_data' endpoint:
 @app.route('/api/parallel_coords_data')
 def parallel_coords_data():
     """
@@ -47,8 +151,9 @@ def parallel_coords_data():
     if df.empty:
         return jsonify([])
     
-    # get position filter if provided
+    # get filters if provided
     position = request.args.get('position', default=None)
+    handedness = request.args.get('handedness', default=None)
     
     # select only the columns we need for parallel coordinates
     cols = ['last_name, first_name', 'player_age', 'bb_percent', 'batting_avg', 
@@ -63,6 +168,11 @@ def parallel_coords_data():
         # Split multiple positions if needed (e.g., "1B,OF")
         positions = position.split(',')
         data_subset = data_subset[data_subset['POS'].isin(positions)]
+    
+    # apply handedness filter if provided
+    if handedness:
+        handedness_values = handedness.split(',')
+        data_subset = data_subset[data_subset['BATS'].isin(handedness_values)]
     
     # convert categorical variables to numeric for parallel coords
     # create a mapping for BATS: L=0, R=1, B=2
@@ -92,83 +202,6 @@ def parallel_coords_data():
             'weight': float(row['weight'])
         }
         result.append(player_data)
-    
-    return jsonify(result)
-
-@app.route('/api/player_home_runs')
-def player_home_runs():
-    """
-    provides player home run data for a given year
-    filters by year, sums HR per player, and returns top N players by HR
-    """
-    year = request.args.get('year', default='2024', type=int)
-    top_n = request.args.get('top_n', default=10, type=int) # number of top players to show
-    position = request.args.get('position', default=None)
-
-    df = get_stats_data()
-    
-    if df.empty:
-        return jsonify([])
-
-    # filter by year
-    year_data = df[df['year'] == year]
-
-    if year_data.empty:
-        return jsonify([])
-    
-    # apply position filter if provided
-    if position:
-        positions = position.split(',')
-        year_data = year_data[year_data['POS'].isin(positions)]
-
-    # group by player name and sum HRs
-    player_hrs = year_data.groupby('last_name, first_name')['home_run'].sum().reset_index()
-    
-    # sort by HR in descending order and take top N
-    top_players_hrs = player_hrs.sort_values(by='home_run', ascending=False).head(top_n)
-    
-    # format for D3 bar chart: [{'name': player_name, 'value': HR}, ...]
-    chart_data = [{'name': str(row['last_name, first_name']), 'value': int(row['home_run']), 
-                  'position': str(year_data[year_data['last_name, first_name'] == row['last_name, first_name']]['POS'].iloc[0])} 
-                 for index, row in top_players_hrs.iterrows()]
-    
-    return jsonify(chart_data)
-
-@app.route('/api/position_stats')
-def position_stats():
-    """Provides average statistics grouped by player position"""
-    df = get_stats_data()
-    
-    if df.empty:
-        return jsonify([])
-    
-    # Group by position and calculate average stats
-    position_stats = df.groupby('POS').agg({
-        'batting_avg': 'mean',
-        'slg_percent': 'mean',
-        'on_base_percent': 'mean',
-        'on_base_plus_slg': 'mean',
-        'bb_percent': 'mean',
-        'k_percent': 'mean',
-        'woba': 'mean',
-        'home_run': 'mean'
-    }).reset_index()
-    
-    # Format for D3
-    result = []
-    for _, row in position_stats.iterrows():
-        position_data = {
-            'position': row['POS'],
-            'batting_avg': round(float(row['batting_avg']), 3),
-            'slg': round(float(row['slg_percent']), 3),
-            'obp': round(float(row['on_base_percent']), 3),
-            'ops': round(float(row['on_base_plus_slg']), 3),
-            'bb_percent': round(float(row['bb_percent']), 1),
-            'k_percent': round(float(row['k_percent']), 1),
-            'woba': round(float(row['woba']), 3),
-            'hr': round(float(row['home_run']), 1)
-        }
-        result.append(position_data)
     
     return jsonify(result)
 

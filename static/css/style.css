@@ -489,3 +489,172 @@ body {
         gap: 4px;
     }
 }
+/* Header with year filter */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+}
+
+.global-filters {
+    display: flex;
+    align-items: center;
+}
+
+/* Updated dashboard container for 2x2 layout */
+.dashboard-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;  /* Two equal-width columns */
+    grid-template-rows: 1fr 1fr;     /* Two equal-height rows */
+    gap: 20px;
+    padding: 20px;
+    flex-grow: 1;
+    box-sizing: border-box;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Position filter with handedness options */
+.position-filter-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.baseball-field-svg-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 0;
+    padding-bottom: 10px;
+}
+
+/* Compact position legend without scrollbar */
+.position-filter-legend {
+    display: flex;
+    flex-direction: column;
+    margin-top: 10px;
+}
+
+.legend-title {
+    margin: 0 0 8px 0;
+    font-size: 0.9em;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+/* Handedness filter container (updated for compact layout) */
+.handedness-filter-container {
+    margin-top: 15px;
+    padding: 10px;
+    border-top: 1px solid #eee;
+}
+
+.filter-section-title {
+    margin: 0 0 10px 0;
+    font-size: 0.95em;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.handedness-options {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.handedness-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 5px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    font-weight: 500;
+    font-size: 0.85em;
+    min-width: 80px;
+}
+
+.handedness-option.left { color: #2980b9; }
+.handedness-option.right { color: #c0392b; }
+.handedness-option.both { color: #8e44ad; }
+
+.handedness-option:hover {
+    background-color: #f5f5f5;
+}
+
+.handedness-option.selected {
+    border-color: #3498db;
+    background-color: #ebf5fb;
+}
+
+.handedness-option-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.color-left { background-color: #2980b9; }
+.color-right { background-color: #c0392b; }
+.color-both { background: linear-gradient(to right, #2980b9 50%, #c0392b 50%); }
+
+.clear-filter-btn {
+    margin-top: 10px;
+    padding: 4px 8px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+    width: 100%;
+    transition: background-color 0.2s;
+}
+
+.clear-filter-btn:hover {
+    background-color: #2980b9;
+}
+
+/* Responsive layout */
+@media (max-width: 850px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .global-filters {
+        margin-top: 10px;
+        width: 100%;
+    }
+    
+    .dashboard-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(4, minmax(350px, auto));
+    }
+    
+    .pane-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .handedness-options {
+        flex-direction: column;
+    }
+    
+    .handedness-option {
+        width: 100%;
+    }
+}

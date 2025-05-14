@@ -10,6 +10,12 @@
 <body>
     <header class="dashboard-header">
         <h1>Baseball Analytics Dashboard</h1>
+        <div class="global-filters">
+            <div class="filter-container">
+                <label for="year-filter">Year:</label>
+                <select id="year-filter"></select>
+            </div>
+        </div>
     </header>
 
     <div class="dashboard-container">
@@ -19,21 +25,33 @@
                 <h3 class="pane-title">Position Filter</h3>
             </div>
             <div id="chart-field" class="chart-container position-filter-container"></div>
+            <!-- Handedness Filter (options only) -->
+            <div class="handedness-filter-container">
+                <h4 class="filter-section-title">Batting Handedness</h4>
+                <div class="handedness-options">
+                    <div class="handedness-option left" data-handedness="L">
+                        <span class="handedness-option-color color-left"></span>Left (L)
+                    </div>
+                    <div class="handedness-option right" data-handedness="R">
+                        <span class="handedness-option-color color-right"></span>Right (R)
+                    </div>
+                    <div class="handedness-option both" data-handedness="B">
+                        <span class="handedness-option-color color-both"></span>Switch (B)
+                    </div>
+                </div>
+                <button id="clear-handedness" class="clear-filter-btn">Clear Handedness</button>
+            </div>
         </div>
 
         <!-- Home Runs Chart -->
         <div id="pane-tr" class="dashboard-pane">
             <div class="pane-header">
                 <h3 class="pane-title">Player Home Runs</h3>
-                <div class="filter-container">
-                    <label for="year-filter">Year:</label>
-                    <select id="year-filter"></select>
-                </div>
             </div>
             <div id="chart-bar" class="chart-container"></div>
         </div>
 
-        <!-- Position Stats Radar Chart -->
+        <!-- Position Stats Chart -->
         <div id="pane-bl" class="dashboard-pane">
             <div class="pane-header">
                 <h3 class="pane-title">Position Performance</h3>

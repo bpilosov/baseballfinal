@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Track selected position filters
     let selectedPositions = [];
+    
+    // Track selected handedness filters
+    let selectedHandedness = [];
 
     // --- Helper function to get dimensions of a chart container ---
     function getChartDimensions(containerElement) {
@@ -27,138 +30,172 @@ document.addEventListener('DOMContentLoaded', function () {
         return { width, height, margin, containerWidth, containerHeight };
     }
 
-    // --- Initialize Position Filter ---
-    function initializePositionFilter() {
-        // Position codes and their display names
-        const positions = {
-            'P': { name: 'Pitcher' },
-            'C': { name: 'Catcher' },
-            '1B': { name: 'First Base' },
-            '2B': { name: 'Second Base' },
-            '3B': { name: 'Third Base' },
-            'SS': { name: 'Shortstop' },
-            'OF': { name: 'Outfield' },
-            'DH': { name: 'Designated Hitter' }
-        };
-        
-        const fieldContainer = d3.select('#chart-field');
-        if (fieldContainer.empty()) {
-            console.error("Position filter container not found");
-            return;
-        }
-        
-        // Inject field SVG 
-        const svgContainer = fieldContainer.append('div')
-            .attr('class', 'baseball-field-svg-container');
-            
-        // Create SVG
-        const svg = svgContainer.append('svg')
-            .attr('viewBox', '0 0 87.18 80')
-            .attr('width', '100%')
-            .attr('height', '100%');
-            
-        // Draw the field diamond (infield)
-        svg.append('path')
-            .attr('d', 'M 0.675,21.541 L 43.59,64.456 L 86.505,21.541 C 75.846,8.608 60.567,0.5 43.59,0.5 C 26.613,0.5 11.335,8.608 0.675,21.541 z')
-            .attr('fill', '#ccebc0')
-            .attr('stroke', '#aaa9aa');
-            
-        // Draw home plate
-        svg.append('rect')
-            .attr('transform', 'matrix(0.7071,-0.7071,0.7071,0.7071,-20.9376,44.7822)')
-            .attr('x', 31.718)
-            .attr('y', 35.793)
-            .attr('width', 23.745)
-            .attr('height', 23.745)
-            .attr('fill', '#faebc3')
-            .attr('stroke', '#aaa9aa');
-            
-        // Position coordinates 
-        const positionCoords = {
-            'P': { x: 43.5, y: 40, radius: 5 },
-            'C': { x: 43.5, y: 58, radius: 5 },
-            '1B': { x: 62, y: 45, radius: 5 },
-            '2B': { x: 54, y: 32, radius: 5 },
-            '3B': { x: 25, y: 45, radius: 5 },
-            'SS': { x: 33, y: 32, radius: 5 },
-            'OF': { x: 43.5, y: 15, radius: 7 },
-            'DH': { x: 43.5, y: 75, radius: 5 },
-        };
-        
-        // Draw positions
-        Object.entries(positionCoords).forEach(([pos, coords]) => {
-            // Create position group
-            const posGroup = svg.append('g')
-                .attr('class', `position-group position-${pos}`)
-                .attr('data-position', pos)
-                .style('cursor', 'pointer');
-                
-            // Circle for the position
-            posGroup.append('circle')
-                .attr('cx', coords.x)
-                .attr('cy', coords.y)
-                .attr('r', coords.radius)
-                .attr('fill', '#2c3e50')
-                .attr('fill-opacity', 0.7)
-                .attr('stroke', 'none');
-                
-            // Position label
-            posGroup.append('text')
-                .attr('x', coords.x)
-                .attr('y', coords.y + 0.5)
-                .attr('text-anchor', 'middle')
-                .attr('alignment-baseline', 'middle')
-                .attr('fill', 'white')
-                .attr('font-size', '5')
-                .attr('font-weight', 'bold')
-                .text(pos);
-                
-            // Add hover and click effects
-            posGroup.on('mouseover', function() {
-                d3.select(this).select('circle').attr('fill-opacity', 1);
-            })
-            .on('mouseout', function() {
-                const posCode = d3.select(this).attr('data-position');
-                if (!selectedPositions.includes(posCode)) {
-                    d3.select(this).select('circle').attr('fill-opacity', 0.7);
-                }
-            })
-            .on('click', function() {
-                const posCode = d3.select(this).attr('data-position');
-                togglePositionFilter(posCode, this);
-            });
-        });
-        
-        // Add legend
-        const legend = fieldContainer.append('div')
-            .attr('class', 'position-filter-legend');
-            
-        legend.append('h4')
-            .attr('class', 'legend-title')
-            .text('Position Filter');
-            
-        const legendItems = legend.append('div')
-            .attr('class', 'legend-items');
-            
-        Object.entries(positions).forEach(([pos, data]) => {
-            legendItems.append('div')
-                .attr('class', 'legend-item')
-                .attr('data-position', pos)
-                .html(`
-                    <span class="legend-color" style="background-color: #2c3e50; opacity: 0.7"></span>
-                    <span class="legend-label">${data.name} (${pos})</span>
-                `)
-                .on('click', function() {
-                    togglePositionFilter(pos);
-                });
-        });
-        
-        // Add clear button
-        legend.append('button')
-            .attr('class', 'clear-filter-btn')
-            .text('Clear Filters')
-            .on('click', clearPositionFilters);
+// Update the position filter initialization function to remove the clear button
+function initializePositionFilter() {
+    // Position codes and their display names
+    const positions = {
+        'P': { name: 'Pitcher' },
+        'C': { name: 'Catcher' },
+        '1B': { name: 'First Base' },
+        '2B': { name: 'Second Base' },
+        '3B': { name: 'Third Base' },
+        'SS': { name: 'Shortstop' },
+        'OF': { name: 'Outfield' },
+        'DH': { name: 'Designated Hitter' }
+    };
+    
+    const fieldContainer = d3.select('#chart-field');
+    if (fieldContainer.empty()) {
+        console.error("position filter container not found");
+        return;
     }
+    
+    // inject field svg 
+    const svgContainer = fieldContainer.append('div')
+        .attr('class', 'baseball-field-svg-container');
+        
+    // create svg
+    const svg = svgContainer.append('svg')
+        .attr('viewBox', '0 0 87.18 80')
+        .attr('width', '100%')
+        .attr('height', '100%');
+        
+    // draw the field diamond (infield)
+    svg.append('path')
+        .attr('d', 'M 0.675,21.541 L 43.59,64.456 L 86.505,21.541 C 75.846,8.608 60.567,0.5 43.59,0.5 C 26.613,0.5 11.335,8.608 0.675,21.541 z')
+        .attr('fill', '#ccebc0')
+        .attr('stroke', '#aaa9aa');
+        
+    // draw home plate
+    svg.append('rect')
+        .attr('transform', 'matrix(0.7071,-0.7071,0.7071,0.7071,-20.9376,44.7822)')
+        .attr('x', 31.718)
+        .attr('y', 35.793)
+        .attr('width', 23.745)
+        .attr('height', 23.745)
+        .attr('fill', '#faebc3')
+        .attr('stroke', '#aaa9aa');
+        
+    // position coordinates 
+    const positionCoords = {
+        'P': { x: 43.5, y: 40, radius: 5 },
+        'C': { x: 43.5, y: 58, radius: 5 },
+        '1B': { x: 62, y: 45, radius: 5 },
+        '2B': { x: 54, y: 32, radius: 5 },
+        '3B': { x: 25, y: 45, radius: 5 },
+        'SS': { x: 33, y: 32, radius: 5 },
+        'OF': { x: 43.5, y: 15, radius: 7 },
+        'DH': { x: 43.5, y: 75, radius: 5 },
+    };
+    
+    // draw positions
+    Object.entries(positionCoords).forEach(([pos, coords]) => {
+        // create position group
+        const posGroup = svg.append('g')
+            .attr('class', `position-group position-${pos}`)
+            .attr('data-position', pos)
+            .style('cursor', 'pointer');
+            
+        // circle for the position
+        posGroup.append('circle')
+            .attr('cx', coords.x)
+            .attr('cy', coords.y)
+            .attr('r', coords.radius)
+            .attr('fill', '#2c3e50')
+            .attr('fill-opacity', 0.7)
+            .attr('stroke', 'none');
+            
+        // position label
+        posGroup.append('text')
+            .attr('x', coords.x)
+            .attr('y', coords.y + 0.5)
+            .attr('text-anchor', 'middle')
+            .attr('alignment-baseline', 'middle')
+            .attr('fill', 'white')
+            .attr('font-size', '5')
+            .attr('font-weight', 'bold')
+            .text(pos);
+            
+        // add hover and click effects
+        posGroup.on('mouseover', function() {
+            d3.select(this).select('circle').attr('fill-opacity', 1);
+        })
+        .on('mouseout', function() {
+            const posCode = d3.select(this).attr('data-position');
+            if (!selectedPositions.includes(posCode)) {
+                d3.select(this).select('circle').attr('fill-opacity', 0.7);
+            }
+        })
+        .on('click', function() {
+            const posCode = d3.select(this).attr('data-position');
+            togglePositionFilter(posCode, this);
+        });
+    });
+    
+    // add legend
+    const legend = fieldContainer.append('div')
+        .attr('class', 'position-filter-legend');
+        
+    legend.append('h4')
+        .attr('class', 'legend-title')
+        .text('Position Filter');
+        
+    const legendItems = legend.append('div')
+        .attr('class', 'legend-items');
+        
+    Object.entries(positions).forEach(([pos, data]) => {
+        legendItems.append('div')
+            .attr('class', 'legend-item')
+            .attr('data-position', pos)
+            .html(`
+                <span class="legend-color" style="background-color: #2c3e50; opacity: 0.7"></span>
+                <span class="legend-label">${data.name} (${pos})</span>
+            `)
+            .on('click', function() {
+                togglePositionFilter(pos);
+            });
+    });
+    
+    // Removed the clear button
+}
+
+    
+// Update handedness filter initialization to use the HTML we already added
+function initializeHandednessFilter() {
+    // Select handedness options from HTML
+    const handednessOptions = d3.selectAll('.handedness-option');
+    
+    // Add click handlers to each option
+    handednessOptions.on('click', function() {
+        const handedness = d3.select(this).attr('data-handedness');
+        toggleHandednessFilter(handedness);
+    });
+    
+    // Add click handler to clear button
+    d3.select('#clear-handedness').on('click', clearHandednessFilters);
+}
+// Update year filter placement to the header
+function populateYearFilter() {
+    const dropdown = d3.select('#year-filter');
+    if (dropdown.empty()) {
+        console.error("year filter dropdown not found");
+        return;
+    }
+
+    const years = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
+    years.forEach(year => {
+        dropdown.append('option')
+            .attr('value', year)
+            .text(year);
+    });
+
+    dropdown.property('value', DEFAULT_YEAR);
+    
+    // Call applyFilters instead of just drawPlayerBarChart to update all charts
+    dropdown.on('change', function() {
+        applyFilters();
+    });
+}
     
     // Toggle position filter
     function togglePositionFilter(position, element) {
@@ -202,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         
         // Redraw all charts with new filter
-        applyPositionFilters();
+        applyFilters();
     }
     
     // Clear all position filters
@@ -222,11 +259,63 @@ document.addEventListener('DOMContentLoaded', function () {
             .style('opacity', 0.7);
             
         // Redraw all charts
-        applyPositionFilters();
+        applyFilters();
     }
     
-    // Apply position filters to all charts
-    function applyPositionFilters() {
+    // Toggle handedness filter
+    function toggleHandednessFilter(handedness) {
+        const index = selectedHandedness.indexOf(handedness);
+        
+        if (index === -1) {
+            // add handedness to filter
+            selectedHandedness.push(handedness);
+            
+            // update visual indicators
+            if (handedness === 'L') {
+                d3.select('.left-batter').style('opacity', 1).style('stroke-width', 2);
+            } else if (handedness === 'R') {
+                d3.select('.right-batter').style('opacity', 1).style('stroke-width', 2);
+            }
+            
+            d3.selectAll(`.handedness-option[data-handedness="${handedness}"]`)
+                .classed('selected', true);
+        } else {
+            // remove handedness from filter
+            selectedHandedness.splice(index, 1);
+            
+            // update visual indicators
+            if (handedness === 'L') {
+                d3.select('.left-batter').style('opacity', 0.8).style('stroke-width', 1);
+            } else if (handedness === 'R') {
+                d3.select('.right-batter').style('opacity', 0.8).style('stroke-width', 1);
+            }
+            
+            d3.selectAll(`.handedness-option[data-handedness="${handedness}"]`)
+                .classed('selected', false);
+        }
+        
+        // apply filters
+        applyFilters();
+    }
+    
+    // Clear handedness filters
+    function clearHandednessFilters() {
+        selectedHandedness = [];
+        
+        // reset visual indicators
+        d3.selectAll('.left-batter, .right-batter')
+            .style('opacity', 0.8)
+            .style('stroke-width', 1);
+            
+        d3.selectAll('.handedness-option')
+            .classed('selected', false);
+            
+        // apply filters
+        applyFilters();
+    }
+    
+    // Apply all filters
+    function applyFilters() {
         const selectedYear = d3.select('#year-filter').property('value') || DEFAULT_YEAR;
         drawPlayerBarChart(selectedYear);
         drawPositionStats();
@@ -242,6 +331,11 @@ document.addEventListener('DOMContentLoaded', function () {
         // Add position filter if active
         if (selectedPositions.length > 0) {
             apiUrl += `&position=${selectedPositions.join(',')}`;
+        }
+        
+        // Add handedness filter if active
+        if (selectedHandedness.length > 0) {
+            apiUrl += `&handedness=${selectedHandedness.join(',')}`;
         }
 
         const chartContainer = d3.select(`#${containerId}`);
@@ -272,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
                    .attr("y", height / 2)
                    .attr("text-anchor", "middle")
                    .style("font-size", "14px")
-                   .text(`No home run data available for ${year}${selectedPositions.length > 0 ? ' with selected position filters' : ''}.`);
+                   .text(`No home run data available for ${year}${selectedPositions.length > 0 ? ' with selected position filters' : ''}${selectedHandedness.length > 0 ? ' and handedness filters' : ''}.`);
                 return;
             }
 
@@ -374,9 +468,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const containerId = 'chart-position-stats';
         let apiUrl = '/api/position_stats';
         
-        // Add position filter if active (though it may not be needed for this chart)
+        // Add position filter if active
         if (selectedPositions.length > 0) {
             apiUrl += `?position=${selectedPositions.join(',')}`;
+        }
+        
+        // Add handedness filter if active
+        if (selectedHandedness.length > 0) {
+            const separator = apiUrl.includes('?') ? '&' : '?';
+            apiUrl += `${separator}handedness=${selectedHandedness.join(',')}`;
         }
         
         const chartContainer = d3.select(`#${containerId}`);
@@ -515,6 +615,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // Add position filter if active
         if (selectedPositions.length > 0) {
             apiUrl += `?position=${selectedPositions.join(',')}`;
+        }
+        
+        // Add handedness filter if active
+        if (selectedHandedness.length > 0) {
+            const separator = apiUrl.includes('?') ? '&' : '?';
+            apiUrl += `${separator}handedness=${selectedHandedness.join(',')}`;
         }
 
         const chartContainer = d3.select(`#${containerId}`);
@@ -986,6 +1092,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Initialize all charts ---
     function initializeDashboard() {
         initializePositionFilter();
+        initializeHandednessFilter(); // Add this line to initialize the handedness filter
         populateYearFilter(); // This will also call drawPlayerBarChart for the default year
         drawPositionStats();
         drawParallelCoordinates();
