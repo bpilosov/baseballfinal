@@ -656,7 +656,35 @@ function populateYearFilter() {
     const containerId = 'chart-parallel-coords';
     const selectedYear = d3.select('#year-filter').property('value') || DEFAULT_YEAR;
     let apiUrl = `/api/parallel_coords_data?year=${selectedYear}`;
-    
+
+    // Ensure this is defined within drawParallelCoordinates, before brush setup
+    let brushSelections = {}; 
+
+    function applyPCPFilters() {
+        const isActiveFilter = Object.keys(brushSelections).length > 0;
+
+        foreground.style("opacity", d => { // 'd' is the data for a single path/player
+            if (!isActiveFilter) {
+                return null; // No active brushes, so use default opacity (from CSS)
+            }
+            // Check if the data point 'd' passes ALL active brushes
+            const pass = Object.entries(brushSelections).every(([dimName, range]) => {
+                const value = parseFloat(d[dimName]); // Ensure value is a number
+
+                // Handle cases where data might be missing or not a number for a dimension
+                if (d[dimName] === undefined || d[dimName] === null || isNaN(value)) {
+                    return false; // Does not pass if data is invalid for a brushed dimension
+                }
+
+                // The 'range' from brushSelections is [inverted_pixel_y_top, inverted_pixel_y_bottom].
+                // For a typical D3 y-axis (data max at pixel top 0, data min at pixel bottom height),
+                // this means range[0] is the max selected data value and range[1] is the min selected data value.
+                return value >= range[1] && value <= range[0];
+            });
+            return pass ? null : 0.02; // If passes all brushes, use default opacity, else make very faint
+        });
+    }
+
     // Add position filter if active
     if (selectedPositions.length > 0) {
         apiUrl += `&position=${selectedPositions.join(',')}`;
@@ -874,64 +902,57 @@ function populateYearFilter() {
             // add brush functionality to each axis for filtering
             axes.each(function(d) {
                 const brush = d3.brushY()
-                    .extent([[-8, 0], [8, height]])
-                    .on("start", brushstart)
-                    .on("brush", brushed)
-                    .on("end", brushend);
-                
-                d3.select(this)
-                    .append("g")
-                    .attr("class", "brush")
-                    .call(brush);
-                
+                .extent([[-8, 0], [8, height]])
+                .on("start", function(event) { brushstart(event, d_dim); }) // Pass d_dim
+                .on("brush", function(event) { brushed(event, d_dim); })   // Pass d_dim
+                .on("end", function(event) { brushend(event, d_dim); });    // Pass d_dim
+
+                d3.select(this) // 'this' is the <g class="dimension"> element which has d_dim as its datum
+                .append("g")
+                .attr("class", "brush")
+                .call(brush);
+
                 brushes.push({dimension: d.name, brush: brush});
             });
 
             let brushSelections = {};
 
             // brush event handlers
+            // Original brushstart can be kept simple or even omitted if no specific start actions are needed.
             function brushstart() {
-                if (pcpDragMode) return; // only allow brushing in brush mode
-                
-                foreground.each(function(d) {
-                    d._initial_opacity = d3.select(this).style("opacity");
-                });
+                if (pcpDragMode) return;
+                // You could add logic here if needed when a brush interaction starts
             }
 
-            function brushed(event, dimension) {
-                if (pcpDragMode || !event.selection) return; // only allow brushing in brush mode
-                
-                // get selection range
-                const range = event.selection.map(y[dimension.name].invert);
-                
-                // store this brush's selection
-                brushSelections[dimension.name] = range;
-                
-                // filter lines based on all active brushes
-                foreground.style("opacity", d => {
-                    return Object.entries(brushSelections).every(([dim, range]) => {
-                        const value = d[dim];
-                        return value >= range[1] && value <= range[0]; // y axis is inverted
-                    }) ? null : 0.02; // use CSS opacity for matched, very faint for non-matched
-                });
-            }
+            function brushed(event, dimension) { // 'dimension' is the datum of the axis <g> element
+                if (pcpDragMode) return;
 
-            function brushend(event) {
-                if (pcpDragMode) return; // only allow brushing in brush mode
-                
-                if (!event.selection) {
-                    // if this brush was cleared, remove its selection
-                    const dimension = d3.select(this).datum();
-                    delete brushSelections[dimension.name];
-                    
-                    // if no brushes remain, restore all lines
-                    if (Object.keys(brushSelections).length === 0) {
-                        foreground.style("opacity", null); // use CSS default
-                    } else {
-                        // otherwise, reapply the remaining brushes
-                        brushed({selection: true}, dimension);
-                    }
+                const currentDimensionName = dimension.name;
+                if (event.selection) {
+                    // event.selection provides [pixel_coord_1, pixel_coord_2] for the brush extent.
+                    // y[currentDimensionName].invert() maps these pixel coordinates back to data values.
+                    brushSelections[currentDimensionName] = event.selection.map(y[currentDimensionName].invert);
+                } else {
+                    // This handles cases where a brush might be cleared during the 'brush' event stream.
+                    delete brushSelections[currentDimensionName];
                 }
+                applyPCPFilters(); // Apply filters live as the brush moves
+            }
+
+            function brushend(event, dimension) { // 'dimension' is the datum of the axis <g> element
+                if (pcpDragMode) return;
+
+                const currentDimensionName = dimension.name;
+                // The 'brushed' event should have kept brushSelections up-to-date.
+                // This handler primarily ensures the final state is correct, especially if a brush is cleared.
+                if (!event.selection) {
+                    delete brushSelections[currentDimensionName];
+                } else {
+                    // Ensure the selection is current based on the final state of the brush event.
+                    // This is often redundant if 'brushed' has run correctly with the same event.selection.
+                    brushSelections[currentDimensionName] = event.selection.map(y[currentDimensionName].invert);
+                }
+                applyPCPFilters(); // Apply filters based on the final state of brushSelections
             }
 
             // add background lines for context with softer styling
