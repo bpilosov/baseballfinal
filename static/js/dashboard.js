@@ -1131,7 +1131,7 @@ function populateYearFilter() {
             // add tooltip div
             const tooltip = d3.select("body").append("div")
                 .attr("class", "d3-tooltip")
-                .style("opacity", 0);
+                .style("opacity", 1);
                 
             // add hover interaction with tooltip
             foreground
