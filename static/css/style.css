@@ -353,7 +353,7 @@ body {
     stroke-linejoin: round;
     stroke-linecap: round;
     mix-blend-mode: multiply; /* enables color blending when lines overlap */
-    opacity: 0.2; /* MODIFIED: Increased initial opacity for immediate visibility */
+    opacity: 0.4; /* MODIFIED: Increased initial opacity for immediate visibility */
     transition: stroke-width 0.2s, stroke 0.2s; /* MODIFIED: Removed opacity from transition */
 }
 
